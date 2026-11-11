@@ -1,0 +1,159 @@
+{
+  "@@locale": "ru",
+  "appTitle": "self26",
+  "navPosts": "Посты",
+  "navFavourites": "Избранное",
+  "navPools": "Пулы",
+  "navTags": "Теги",
+  "navComments": "Комментарии",
+  "navUpload": "Загрузить",
+  "navAdmin": "Админ",
+  "navSettings": "Настройки",
+  "navLogin": "Войти",
+  "navLogout": "Выйти",
+  "searchHint": "Поиск по тегам…",
+  "search": "Поиск",
+  "random": "Случайный",
+  "popular": "Популярное",
+  "hot": "Горячее",
+  "noPosts": "Постов пока нет",
+  "noPostsHint": "Загрузите что-нибудь, чтобы начать.",
+  "noFavourites": "В избранном пока пусто",
+  "noPools": "Пулов пока нет",
+  "noComments": "Комментариев пока нет",
+  "loading": "Загрузка…",
+  "loadFailed": "Не удалось загрузить {what}",
+  "@loadFailed": {
+    "placeholders": {
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "retry": "Повторить",
+  "postScore": "Рейтинг",
+  "postFavourites": "В избранном",
+  "postComments": "Комментарии",
+  "postUploader": "Автор",
+  "postRating": "Рейтинг",
+  "postSources": "Источники",
+  "postDescription": "Описание",
+  "postTags": "Теги",
+  "postPools": "Пулы",
+  "postParent": "Родитель",
+  "postChildren": "Дочерние",
+  "addFavourite": "В избранное",
+  "removeFavourite": "Убрать из избранного",
+  "voteUp": "Плюс",
+  "voteDown": "Минус",
+  "addComment": "Добавить комментарий",
+  "commentHint": "Написать комментарий…",
+  "commentPost": "Отправить",
+  "commentDelete": "Удалить",
+  "deletePost": "Удалить пост",
+  "deleteConfirm": "Удалить этот пост? Действие необратимо.",
+  "cancel": "Отмена",
+  "confirm": "Подтвердить",
+  "save": "Сохранить",
+  "editPost": "Редактировать",
+  "uploadTitle": "Загрузка",
+  "uploadChoose": "Выбрать файл",
+  "uploadNoFile": "Файл не выбран",
+  "uploadTags": "Теги",
+  "uploadTagsHint": "теги через пробел",
+  "uploadSource": "Источник",
+  "uploadDescription": "Описание",
+  "uploadSubmit": "Загрузить",
+  "uploadSuccess": "Загружен пост #{id}",
+  "@uploadSuccess": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "uploadFailed": "Ошибка загрузки",
+  "uploadSignIn": "Войдите, чтобы загружать",
+  "poolsNew": "Новый пул",
+  "poolName": "Название пула",
+  "poolDescription": "Описание",
+  "poolCreate": "Создать пул",
+  "poolPosts": "Постов: {count}",
+  "@poolPosts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsTitle": "Настройки",
+  "settingsServer": "Сервер",
+  "settingsServerUrl": "Адрес сервера",
+  "settingsLanguage": "Язык",
+  "languageSystem": "Системный",
+  "settingsTheme": "Тема",
+  "themeSystem": "Системная",
+  "themeLight": "Светлая",
+  "themeDark": "Тёмная",
+  "themeOled": "OLED",
+  "settingsAbout": "О программе",
+  "settingsVersion": "Версия",
+  "settingsCheckUpdates": "Проверить обновления",
+  "settingsChecking": "Проверка…",
+  "settingsUpToDate": "self26 обновлён до последней версии",
+  "settingsUpdateAvailable": "Доступна версия {version}",
+  "@settingsUpdateAvailable": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsCheckFailed": "Не удалось проверить обновления",
+  "settingsViewRelease": "Открыть релиз",
+  "settingsReleases": "Все релизы",
+  "settingsLicence": "Лицензия: AGPL-3.0",
+  "settingsSource": "Исходный код",
+  "loginTitle": "Вход",
+  "loginName": "Имя пользователя",
+  "loginPassword": "Пароль",
+  "loginSubmit": "Войти",
+  "loginFailed": "Ошибка входа",
+  "loginApiKey": "Ключ API",
+  "loginApiKeyHint": "Или вставьте ключ API",
+  "loginUseKey": "Войти по ключу",
+  "loggedInAs": "Вы вошли как {name}",
+  "@loggedInAs": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "adminTitle": "Администрирование",
+  "adminStats": "Статистика",
+  "adminStatsPosts": "Посты",
+  "adminStatsUsers": "Пользователи",
+  "adminStatsTags": "Теги",
+  "adminStatsComments": "Комментарии",
+  "adminStatsPools": "Пулы",
+  "adminStatsFlags": "Открытые флаги",
+  "adminStatsTickets": "Открытые тикеты",
+  "adminStatsDisk": "Занято места",
+  "adminUsers": "Пользователи",
+  "adminFlags": "Флаги",
+  "adminResolve": "Решить",
+  "adminNewUser": "Новый пользователь",
+  "adminUserName": "Имя",
+  "adminUserLevel": "Уровень",
+  "adminCreate": "Создать",
+  "windowClose": "Закрыть",
+  "windowMinimize": "Свернуть",
+  "windowZoom": "Развернуть",
+  "sidebarCollapse": "Меню",
+  "emptyGeneric": "Здесь пока пусто",
+  "errorOffline": "Не удалось связаться с сервером",
+  "ratingSafe": "Безопасный",
+  "ratingQuestionable": "Сомнительный",
+  "ratingExplicit": "Откровенный"
+}

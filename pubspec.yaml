@@ -1,0 +1,60 @@
+name: self26
+description: "Self-hosted e621-compatible media server."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.13.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  intl: any
+  http: ^1.2.0
+  provider: ^6.1.2
+  shared_preferences: ^2.3.0
+  package_info_plus: ^8.0.0
+  url_launcher: ^6.3.0
+  window_manager: ^0.4.3
+  file_picker: ^8.1.2
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_launcher_icons: ^0.14.4
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  generate: true
+  assets:
+    - assets/fonts/
+    - assets/icon.png
+  fonts:
+    - family: NotoSans
+      fonts:
+        - asset: assets/fonts/NotoSans-Regular.ttf
+        - asset: assets/fonts/NotoSans-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/NotoSans-Bold.ttf
+          weight: 700
+
+flutter_launcher_icons:
+  image_path: assets/icon.png
+  android: true
+  adaptive_icon_foreground: assets/icon.png
+  adaptive_icon_background: "#002547"
+  ios: true
+  remove_alpha_ios: true
+  web:
+    generate: true
+    background_color: "#002547"
+    theme_color: "#00549F"
+  windows:
+    generate: true
+    icon_size: 256
+  macos:
+    generate: true

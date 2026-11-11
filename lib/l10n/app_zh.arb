@@ -1,0 +1,159 @@
+{
+  "@@locale": "zh",
+  "appTitle": "self26",
+  "navPosts": "帖子",
+  "navFavourites": "收藏",
+  "navPools": "图集",
+  "navTags": "标签",
+  "navComments": "评论",
+  "navUpload": "上传",
+  "navAdmin": "管理",
+  "navSettings": "设置",
+  "navLogin": "登录",
+  "navLogout": "退出登录",
+  "searchHint": "搜索标签…",
+  "search": "搜索",
+  "random": "随机",
+  "popular": "热门",
+  "hot": "时下",
+  "noPosts": "还没有帖子",
+  "noPostsHint": "上传一些内容开始使用吧。",
+  "noFavourites": "还没有收藏",
+  "noPools": "还没有图集",
+  "noComments": "还没有评论",
+  "loading": "加载中…",
+  "loadFailed": "无法加载{what}",
+  "@loadFailed": {
+    "placeholders": {
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "retry": "重试",
+  "postScore": "分数",
+  "postFavourites": "收藏数",
+  "postComments": "评论",
+  "postUploader": "上传者",
+  "postRating": "分级",
+  "postSources": "来源",
+  "postDescription": "描述",
+  "postTags": "标签",
+  "postPools": "所属图集",
+  "postParent": "父帖子",
+  "postChildren": "子帖子",
+  "addFavourite": "加入收藏",
+  "removeFavourite": "取消收藏",
+  "voteUp": "顶",
+  "voteDown": "踩",
+  "addComment": "发表评论",
+  "commentHint": "写评论…",
+  "commentPost": "发布评论",
+  "commentDelete": "删除",
+  "deletePost": "删除帖子",
+  "deleteConfirm": "确定删除此帖子吗？此操作无法撤销。",
+  "cancel": "取消",
+  "confirm": "确认",
+  "save": "保存",
+  "editPost": "编辑帖子",
+  "uploadTitle": "上传",
+  "uploadChoose": "选择文件",
+  "uploadNoFile": "未选择文件",
+  "uploadTags": "标签",
+  "uploadTagsHint": "以空格分隔的标签",
+  "uploadSource": "来源",
+  "uploadDescription": "描述",
+  "uploadSubmit": "上传",
+  "uploadSuccess": "已上传帖子 #{id}",
+  "@uploadSuccess": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "uploadFailed": "上传失败",
+  "uploadSignIn": "登录后上传",
+  "poolsNew": "新建图集",
+  "poolName": "图集名称",
+  "poolDescription": "描述",
+  "poolCreate": "创建图集",
+  "poolPosts": "{count} 个帖子",
+  "@poolPosts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsTitle": "设置",
+  "settingsServer": "服务器",
+  "settingsServerUrl": "服务器地址",
+  "settingsLanguage": "语言",
+  "languageSystem": "跟随系统",
+  "settingsTheme": "主题",
+  "themeSystem": "跟随系统",
+  "themeLight": "浅色",
+  "themeDark": "深色",
+  "themeOled": "OLED",
+  "settingsAbout": "关于",
+  "settingsVersion": "版本",
+  "settingsCheckUpdates": "检查更新",
+  "settingsChecking": "检查中…",
+  "settingsUpToDate": "self26 已是最新版本",
+  "settingsUpdateAvailable": "新版本 {version} 可用",
+  "@settingsUpdateAvailable": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsCheckFailed": "检查更新失败",
+  "settingsViewRelease": "查看发布",
+  "settingsReleases": "所有发布",
+  "settingsLicence": "许可证：AGPL-3.0",
+  "settingsSource": "源代码",
+  "loginTitle": "登录",
+  "loginName": "用户名",
+  "loginPassword": "密码",
+  "loginSubmit": "登录",
+  "loginFailed": "登录失败",
+  "loginApiKey": "API 密钥",
+  "loginApiKeyHint": "或粘贴 API 密钥",
+  "loginUseKey": "使用 API 密钥",
+  "loggedInAs": "已登录为 {name}",
+  "@loggedInAs": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "adminTitle": "管理",
+  "adminStats": "统计",
+  "adminStatsPosts": "帖子",
+  "adminStatsUsers": "用户",
+  "adminStatsTags": "标签",
+  "adminStatsComments": "评论",
+  "adminStatsPools": "图集",
+  "adminStatsFlags": "待处理标记",
+  "adminStatsTickets": "待处理工单",
+  "adminStatsDisk": "存储占用",
+  "adminUsers": "用户",
+  "adminFlags": "标记",
+  "adminResolve": "解决",
+  "adminNewUser": "新建用户",
+  "adminUserName": "用户名",
+  "adminUserLevel": "级别",
+  "adminCreate": "创建",
+  "windowClose": "关闭",
+  "windowMinimize": "最小化",
+  "windowZoom": "缩放",
+  "sidebarCollapse": "菜单",
+  "emptyGeneric": "这里还没有内容",
+  "errorOffline": "无法连接服务器",
+  "ratingSafe": "安全",
+  "ratingQuestionable": "存疑",
+  "ratingExplicit": "限制级"
+}

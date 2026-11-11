@@ -1,0 +1,27 @@
+app-id: gitlab.httpanimations.self26
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+command: self26_frontend
+finish-args:
+  - --share=network
+  - --socket=fallback-x11
+  - --socket=wayland
+  - --share=ipc
+  - --device=dri
+modules:
+  - name: self26
+    buildsystem: simple
+    build-commands:
+      - install -Dm755 bundle/self26_frontend /app/bin/self26_frontend
+      - cp -r bundle/lib bundle/data /app/
+      - install -Dm755 self26-server /app/bin/self26-server
+      - sed 's/^Exec=.*/Exec=self26_frontend/' packaging/self26.desktop > self26.desktop
+      - install -Dm644 self26.desktop /app/share/applications/gitlab.httpanimations.self26.desktop
+      - install -Dm644 packaging/self26.png /app/share/icons/hicolor/256x256/apps/self26.png
+    sources:
+      - type: dir
+        path: ../flatpak-stage
+      - type: dir
+        path: ./
+        dest: packaging

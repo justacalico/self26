@@ -1,0 +1,159 @@
+{
+  "@@locale": "ga",
+  "appTitle": "self26",
+  "navPosts": "Postálacha",
+  "navFavourites": "Ceanáin",
+  "navPools": "Linní",
+  "navTags": "Clibeanna",
+  "navComments": "Tuairimí",
+  "navUpload": "Uaslódáil",
+  "navAdmin": "Riarachán",
+  "navSettings": "Socruithe",
+  "navLogin": "Logáil isteach",
+  "navLogout": "Logáil amach",
+  "searchHint": "Cuardaigh clibeanna…",
+  "search": "Cuardaigh",
+  "random": "Randamach",
+  "popular": "Coitianta",
+  "hot": "Te",
+  "noPosts": "Níl aon phostáil fós",
+  "noPostsHint": "Uaslódáil rud éigin chun tosú.",
+  "noFavourites": "Níl aon cheanán fós",
+  "noPools": "Níl aon linn fós",
+  "noComments": "Níl aon tuairim fós",
+  "loading": "Á lódáil…",
+  "loadFailed": "Níorbh fhéidir {what} a lódáil",
+  "@loadFailed": {
+    "placeholders": {
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "retry": "Bain triail eile as",
+  "postScore": "Scór",
+  "postFavourites": "Ceanáin",
+  "postComments": "Tuairimí",
+  "postUploader": "Uaslódálaí",
+  "postRating": "Rátáil",
+  "postSources": "Foinsí",
+  "postDescription": "Cur síos",
+  "postTags": "Clibeanna",
+  "postPools": "Linní",
+  "postParent": "Tuismitheoir",
+  "postChildren": "Leanaí",
+  "addFavourite": "Cuir le ceanáin",
+  "removeFavourite": "Bain de cheanáin",
+  "voteUp": "Vótáil suas",
+  "voteDown": "Vótáil síos",
+  "addComment": "Cuir tuairim leis",
+  "commentHint": "Scríobh tuairim…",
+  "commentPost": "Postáil tuairim",
+  "commentDelete": "Scrios",
+  "deletePost": "Scrios postáil",
+  "deleteConfirm": "Scrios an phostáil seo? Ní féidir é a chealú.",
+  "cancel": "Cealaigh",
+  "confirm": "Deimhnigh",
+  "save": "Sábháil",
+  "editPost": "Cuir postáil in eagar",
+  "uploadTitle": "Uaslódáil",
+  "uploadChoose": "Roghnaigh comhad",
+  "uploadNoFile": "Níor roghnaíodh comhad",
+  "uploadTags": "Clibeanna",
+  "uploadTagsHint": "clibeanna scartha le spásanna",
+  "uploadSource": "Foinse",
+  "uploadDescription": "Cur síos",
+  "uploadSubmit": "Uaslódáil",
+  "uploadSuccess": "Uaslódáladh postáil #{id}",
+  "@uploadSuccess": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "uploadFailed": "Theip ar an uaslódáil",
+  "uploadSignIn": "Logáil isteach chun uaslódáil",
+  "poolsNew": "Linn nua",
+  "poolName": "Ainm na linne",
+  "poolDescription": "Cur síos",
+  "poolCreate": "Cruthaigh linn",
+  "poolPosts": "{count} phostáil",
+  "@poolPosts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsTitle": "Socruithe",
+  "settingsServer": "Freastalaí",
+  "settingsServerUrl": "URL an fhreastalaí",
+  "settingsLanguage": "Teanga",
+  "languageSystem": "Córas",
+  "settingsTheme": "Téama",
+  "themeSystem": "Córas",
+  "themeLight": "Solas",
+  "themeDark": "Dorcha",
+  "themeOled": "OLED",
+  "settingsAbout": "Maidir leis",
+  "settingsVersion": "Leagan",
+  "settingsCheckUpdates": "Seiceáil do nuashonruithe",
+  "settingsChecking": "Á sheiceáil…",
+  "settingsUpToDate": "Tá self26 cothrom le dáta",
+  "settingsUpdateAvailable": "Tá leagan {version} ar fáil",
+  "@settingsUpdateAvailable": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsCheckFailed": "Theip ar sheiceáil nuashonraithe",
+  "settingsViewRelease": "Amharc ar an eisiúint",
+  "settingsReleases": "Gach eisiúint",
+  "settingsLicence": "Ceadúnas: AGPL-3.0",
+  "settingsSource": "Cód foinseach",
+  "loginTitle": "Logáil isteach",
+  "loginName": "Ainm úsáideora",
+  "loginPassword": "Pasfhocal",
+  "loginSubmit": "Logáil isteach",
+  "loginFailed": "Theip ar an logáil isteach",
+  "loginApiKey": "Eochair API",
+  "loginApiKeyHint": "Nó greamaigh eochair API",
+  "loginUseKey": "Úsáid eochair API",
+  "loggedInAs": "Logáilte isteach mar {name}",
+  "@loggedInAs": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "adminTitle": "Riarachán",
+  "adminStats": "Staitisticí",
+  "adminStatsPosts": "Postálacha",
+  "adminStatsUsers": "Úsáideoirí",
+  "adminStatsTags": "Clibeanna",
+  "adminStatsComments": "Tuairimí",
+  "adminStatsPools": "Linní",
+  "adminStatsFlags": "Brataigh oscailte",
+  "adminStatsTickets": "Ticéid oscailte",
+  "adminStatsDisk": "Spás stórála",
+  "adminUsers": "Úsáideoirí",
+  "adminFlags": "Brataigh",
+  "adminResolve": "Réitigh",
+  "adminNewUser": "Úsáideoir nua",
+  "adminUserName": "Ainm",
+  "adminUserLevel": "Leibhéal",
+  "adminCreate": "Cruthaigh",
+  "windowClose": "Dún",
+  "windowMinimize": "Íoslaghdaigh",
+  "windowZoom": "Súmáil",
+  "sidebarCollapse": "Roghchlár",
+  "emptyGeneric": "Níl aon rud anseo fós",
+  "errorOffline": "Níorbh fhéidir teagmháil a dhéanamh leis an bhfreastalaí",
+  "ratingSafe": "Sábháilte",
+  "ratingQuestionable": "Amhrasach",
+  "ratingExplicit": "Sainráite"
+}

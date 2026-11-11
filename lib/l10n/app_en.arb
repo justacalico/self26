@@ -1,0 +1,159 @@
+{
+  "@@locale": "en",
+  "appTitle": "self26",
+  "navPosts": "Posts",
+  "navFavourites": "Favourites",
+  "navPools": "Pools",
+  "navTags": "Tags",
+  "navComments": "Comments",
+  "navUpload": "Upload",
+  "navAdmin": "Admin",
+  "navSettings": "Settings",
+  "navLogin": "Sign in",
+  "navLogout": "Sign out",
+  "searchHint": "Search tags…",
+  "search": "Search",
+  "random": "Random",
+  "popular": "Popular",
+  "hot": "Hot",
+  "noPosts": "No posts yet",
+  "noPostsHint": "Upload something to get started.",
+  "noFavourites": "No favourites yet",
+  "noPools": "No pools yet",
+  "noComments": "No comments yet",
+  "loading": "Loading…",
+  "loadFailed": "Could not load {what}",
+  "@loadFailed": {
+    "placeholders": {
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "retry": "Retry",
+  "postScore": "Score",
+  "postFavourites": "Favourites",
+  "postComments": "Comments",
+  "postUploader": "Uploader",
+  "postRating": "Rating",
+  "postSources": "Sources",
+  "postDescription": "Description",
+  "postTags": "Tags",
+  "postPools": "Pools",
+  "postParent": "Parent",
+  "postChildren": "Children",
+  "addFavourite": "Add to favourites",
+  "removeFavourite": "Remove from favourites",
+  "voteUp": "Vote up",
+  "voteDown": "Vote down",
+  "addComment": "Add a comment",
+  "commentHint": "Write a comment…",
+  "commentPost": "Post comment",
+  "commentDelete": "Delete",
+  "deletePost": "Delete post",
+  "deleteConfirm": "Delete this post? This cannot be undone.",
+  "cancel": "Cancel",
+  "confirm": "Confirm",
+  "save": "Save",
+  "editPost": "Edit post",
+  "uploadTitle": "Upload",
+  "uploadChoose": "Choose file",
+  "uploadNoFile": "No file chosen",
+  "uploadTags": "Tags",
+  "uploadTagsHint": "space separated tags",
+  "uploadSource": "Source",
+  "uploadDescription": "Description",
+  "uploadSubmit": "Upload",
+  "uploadSuccess": "Uploaded post #{id}",
+  "@uploadSuccess": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "uploadFailed": "Upload failed",
+  "uploadSignIn": "Sign in to upload",
+  "poolsNew": "New pool",
+  "poolName": "Pool name",
+  "poolDescription": "Description",
+  "poolCreate": "Create pool",
+  "poolPosts": "{count} posts",
+  "@poolPosts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsTitle": "Settings",
+  "settingsServer": "Server",
+  "settingsServerUrl": "Server URL",
+  "settingsLanguage": "Language",
+  "languageSystem": "System",
+  "settingsTheme": "Theme",
+  "themeSystem": "System",
+  "themeLight": "Light",
+  "themeDark": "Dark",
+  "themeOled": "OLED",
+  "settingsAbout": "About",
+  "settingsVersion": "Version",
+  "settingsCheckUpdates": "Check for updates",
+  "settingsChecking": "Checking…",
+  "settingsUpToDate": "self26 is up to date",
+  "settingsUpdateAvailable": "Version {version} is available",
+  "@settingsUpdateAvailable": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsCheckFailed": "Update check failed",
+  "settingsViewRelease": "View release",
+  "settingsReleases": "All releases",
+  "settingsLicence": "Licence: AGPL-3.0",
+  "settingsSource": "Source code",
+  "loginTitle": "Sign in",
+  "loginName": "Username",
+  "loginPassword": "Password",
+  "loginSubmit": "Sign in",
+  "loginFailed": "Sign in failed",
+  "loginApiKey": "API key",
+  "loginApiKeyHint": "Or paste an API key",
+  "loginUseKey": "Use API key",
+  "loggedInAs": "Signed in as {name}",
+  "@loggedInAs": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "adminTitle": "Administration",
+  "adminStats": "Statistics",
+  "adminStatsPosts": "Posts",
+  "adminStatsUsers": "Users",
+  "adminStatsTags": "Tags",
+  "adminStatsComments": "Comments",
+  "adminStatsPools": "Pools",
+  "adminStatsFlags": "Open flags",
+  "adminStatsTickets": "Open tickets",
+  "adminStatsDisk": "Storage used",
+  "adminUsers": "Users",
+  "adminFlags": "Flags",
+  "adminResolve": "Resolve",
+  "adminNewUser": "New user",
+  "adminUserName": "Name",
+  "adminUserLevel": "Level",
+  "adminCreate": "Create",
+  "windowClose": "Close",
+  "windowMinimize": "Minimise",
+  "windowZoom": "Zoom",
+  "sidebarCollapse": "Menu",
+  "emptyGeneric": "Nothing here yet",
+  "errorOffline": "Could not reach the server",
+  "ratingSafe": "Safe",
+  "ratingQuestionable": "Questionable",
+  "ratingExplicit": "Explicit"
+}

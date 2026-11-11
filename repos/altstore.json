@@ -1,0 +1,23 @@
+{
+  "name": "self26",
+  "identifier": "gitlab.httpanimations.self26",
+  "sourceURL": "https://gitlab.com/HttpAnimations/self26/-/raw/main/repos/altstore.json",
+  "apps": [
+    {
+      "name": "self26",
+      "bundleIdentifier": "gitlab.httpanimations.self26",
+      "developerName": "HttpAnimations",
+      "subtitle": "Self-hosted e621-compatible media server",
+      "localizedDescription": "Self-hosted e621-compatible media server with a web UI.",
+      "iconURL": "https://gitlab.com/HttpAnimations/self26/-/raw/main/assets/icon.png",
+      "tintColor": "00549F",
+      "category": "utilities",
+      "versions": [],
+      "appPermissions": {
+        "entitlements": [],
+        "privacy": {}
+      }
+    }
+  ],
+  "news": []
+}
