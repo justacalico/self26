@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -71,6 +70,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Could not load releases.'), findsOneWidget);
+    await tester.ensureVisible(find.text('Retry'));
     await tester.tap(find.text('Retry'));
     await tester.pumpAndSettle();
     expect(calls, 2);

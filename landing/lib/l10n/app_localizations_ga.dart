@@ -73,8 +73,7 @@ class AppLocalizationsGa extends AppLocalizations {
   String get featurePlatforms => 'Gréasán, deasc agus soghluaiste';
 
   @override
-  String get featureBooru =>
-      'Linnte, clibeanna, tráchtanna agus is fearr leat';
+  String get featureBooru => 'Linnte, clibeanna, tráchtanna agus is fearr leat';
 
   @override
   String get downloadsTitle => 'Íoslódálacha';

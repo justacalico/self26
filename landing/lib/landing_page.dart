@@ -315,7 +315,7 @@ class _Downloads extends StatefulWidget {
 }
 
 class _DownloadsState extends State<_Downloads> {
-  late Future<LandingRelease?> _future;
+  late Future<({LandingRelease? release, bool failed})> _future;
   http.Client? _ownedClient;
 
   http.Client get _client => widget.client ?? (_ownedClient ??= http.Client());
@@ -323,7 +323,15 @@ class _DownloadsState extends State<_Downloads> {
   @override
   void initState() {
     super.initState();
-    _future = fetchLatestRelease(_client);
+    _future = _load();
+  }
+
+  Future<({LandingRelease? release, bool failed})> _load() async {
+    try {
+      return (release: await fetchLatestRelease(_client), failed: false);
+    } catch (_) {
+      return (release: null, failed: true);
+    }
   }
 
   @override
@@ -333,7 +341,9 @@ class _DownloadsState extends State<_Downloads> {
   }
 
   void _retry() {
-    setState(() => _future = fetchLatestRelease(_client));
+    setState(() {
+      _future = _load();
+    });
   }
 
   @override
@@ -343,7 +353,7 @@ class _DownloadsState extends State<_Downloads> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        FutureBuilder<LandingRelease?>(
+        FutureBuilder<({LandingRelease? release, bool failed})>(
           future: _future,
           builder: (context, snap) {
             if (snap.connectionState != ConnectionState.done) {
@@ -352,7 +362,7 @@ class _DownloadsState extends State<_Downloads> {
                 child: Center(child: CircularProgressIndicator()),
               );
             }
-            if (snap.hasError) {
+            if (snap.hasError || snap.data!.failed) {
               return Row(
                 children: [
                   Text(l.downloadsError,
@@ -363,7 +373,7 @@ class _DownloadsState extends State<_Downloads> {
                 ],
               );
             }
-            final release = snap.data;
+            final release = snap.data!.release;
             if (release == null) {
               return Text(l.downloadsEmpty,
                   style: theme.textTheme.bodyMedium
