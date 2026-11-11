@@ -6,6 +6,10 @@ import '../l10n/app_localizations.dart';
 import '../state.dart';
 import '../widgets.dart';
 
+/// The live implementation; tests replace this with a fake.
+Future<FilePickerResult?> Function() pickUploadFile = () =>
+    FilePicker.platform.pickFiles(type: FileType.any, withData: true);
+
 class UploadPage extends StatefulWidget {
   const UploadPage({super.key});
 
@@ -31,8 +35,7 @@ class _UploadPageState extends State<UploadPage> {
   }
 
   Future<void> _pick() async {
-    final result = await FilePicker.platform
-        .pickFiles(type: FileType.any, withData: true);
+    final result = await pickUploadFile();
     if (result != null && result.files.isNotEmpty) {
       setState(() => _file = result.files.first);
     }

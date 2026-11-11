@@ -1,11 +1,11 @@
 {
-    "name": "self26_landing",
-    "short_name": "self26_landing",
+    "name": "self26",
+    "short_name": "self26",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "self26 - a self-hosted e621-compatible media server.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -145,7 +145,15 @@ jobs:
           flutter config --no-analytics >/dev/null
           flutter pub get
           flutter analyze --no-pub
-          xvfb-run -a flutter test --no-pub
+          xvfb-run -a flutter test --no-pub --coverage
+          python3 - <<'PY'
+          lh = lf = 0
+          for line in open("coverage/lcov.info"):
+              if line.startswith("LF:"): lf += int(line[3:])
+              if line.startswith("LH:"): lh += int(line[3:])
+          print(f"coverage {lh}/{lf}")
+          raise SystemExit(0 if lf > 0 and lh == lf else 1)
+          PY
 
   build:
     name: Build ${{ matrix.target }}
@@ -199,15 +207,15 @@ jobs:
           fi
 
       - name: Install Rust
-        if: startsWith(matrix.target, 'server') || startsWith(matrix.target, 'linux') || startsWith(matrix.target, 'windows') || matrix.target == 'macos'
+        if: startsWith(matrix.target, 'server') || startsWith(matrix.target, 'linux') || startsWith(matrix.target, 'windows') || startsWith(matrix.target, 'flatpak') || matrix.target == 'macos'
         uses: dtolnay/rust-toolchain@1.88.0
 
       - name: Cache Rust
-        if: startsWith(matrix.target, 'server') || startsWith(matrix.target, 'linux') || startsWith(matrix.target, 'windows') || matrix.target == 'macos'
+        if: startsWith(matrix.target, 'server') || startsWith(matrix.target, 'linux') || startsWith(matrix.target, 'windows') || startsWith(matrix.target, 'flatpak') || matrix.target == 'macos'
         uses: Swatinem/rust-cache@v2
 
       - name: Install Linux build dependencies
-        if: startsWith(matrix.target, 'linux')
+        if: startsWith(matrix.target, 'linux') || startsWith(matrix.target, 'flatpak')
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq clang cmake ninja-build pkg-config libgtk-3-dev libblkid-dev liblzma-dev zip dpkg-dev rpm
@@ -499,8 +507,8 @@ jobs:
           set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y -qq flatpak flatpak-builder
-          flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-          sudo flatpak install -y --noninteractive flathub org.freedesktop.Platform//24.08 org.freedesktop.Sdk//24.08
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user -y --noninteractive flathub org.freedesktop.Platform//24.08 org.freedesktop.Sdk//24.08
 
       - name: Build Flatpak repo
         if: startsWith(matrix.target, 'flatpak')
@@ -513,10 +521,9 @@ jobs:
           printf '%s' "$FLATPAK_GPG_KEY" | base64 -d | gpg --batch --homedir .gpg --import
           KEYID=$(gpg --batch --homedir .gpg --list-keys --with-colons | awk -F: '/^sec/{print $5; exit}')
           flutter config --no-analytics >/dev/null
-          flutter pub get
-          flutter build linux --release --build-name="$VERSION" --build-number="$BUILD_NUMBER"
           ./scripts/build-flutter.sh
           cargo build --release
+          flutter build linux --release --build-name="$VERSION" --build-number="$BUILD_NUMBER"
           if [ "${{ matrix.target }}" = "flatpak-arm64" ]; then FP_ARCH=aarch64; OUT_ARCH=arm64; LINUX_ARCH=arm64; else FP_ARCH=x86_64; OUT_ARCH=x86_64; LINUX_ARCH=x64; fi
           mkdir -p flatpak-stage
           cp -r "build/linux/$LINUX_ARCH/release/bundle" flatpak-stage/bundle

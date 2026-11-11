@@ -94,11 +94,7 @@ class Version implements Comparable<Version> {
 
   static BigInt? _tryParseBigInt(String value) {
     if (!_isNumeric(value)) return null;
-    try {
-      return BigInt.parse(value);
-    } on FormatException {
-      return null;
-    }
+    return BigInt.tryParse(value);
   }
 
   @override

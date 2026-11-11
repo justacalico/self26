@@ -195,7 +195,7 @@ pages:
     - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
     - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
   before_script:
-    - apt-get update -qq && apt-get install -y -qq git curl unzip xz-utils libglu1-mesa
+    - apt-get update -qq && apt-get install -y -qq git curl unzip xz-utils libglu1-mesa ostree jq openssh-client
     - curl -fsSL --retry 3 -o /tmp/flutter.tar.xz "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.35.7-stable.tar.xz"
     - mkdir -p /opt && tar -xf /tmp/flutter.tar.xz -C /opt
     - export PATH="/opt/flutter/bin:$PATH"
@@ -204,8 +204,22 @@ pages:
     - flutter precache --web
   script:
     - export PATH="/opt/flutter/bin:$PATH"
+    - bash scripts/install-glab.sh
     - mkdir -p public/flatpak
     - cp flatpak/key.gpg public/flatpak/key.gpg
+    - |
+      LATEST=$(glab api "projects/$CI_PROJECT_ID/releases?per_page=1" 2>/dev/null | jq -r '.[0].tag_name // empty')
+      if [ -n "$LATEST" ]; then
+        ostree --repo=public/flatpak init --mode=archive-z2 2>/dev/null || true
+        glab api "projects/$CI_PROJECT_ID/releases/$LATEST" | jq -r '.assets.links[] | select(.name | test("self26-flatpak-.*\\.tar\\.gz")) | .name + " " + .url' | while read -r name url; do
+          [ -z "$name" ] && continue
+          a=$(printf '%s' "$name" | sed 's/.*flatpak-\(.*\)\.tar\.gz/\1/')
+          mkdir -p "/tmp/fp/$a"
+          curl -fsSL "$url" | tar -xz -C "/tmp/fp/$a"
+          ostree --repo=public/flatpak pull-local "/tmp/fp/$a" || true
+        done
+        ostree --repo=public/flatpak summary -u 2>/dev/null || true
+      fi
     - cd landing && flutter pub get && flutter build web --release --base-href "/$CI_PROJECT_NAME/" && cd ..
     - cp -r landing/build/web/* public/
     - flutter pub get && flutter build web --release --base-href "/$CI_PROJECT_NAME/app/"
