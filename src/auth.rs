@@ -94,24 +94,6 @@ pub fn user_by_name(conn: &Connection, name: &str) -> Option<StoredUser> {
     .and_then(|id| get_user(conn, id))
 }
 
-pub fn user_by_api_key(conn: &Connection, key: &str) -> Option<StoredUser> {
-    let id: Option<i64> = conn
-        .query_row(
-            "SELECT id FROM users WHERE api_key = ?1",
-            params![key],
-            |r| r.get(0),
-        )
-        .ok();
-    let id = id?;
-    let user = get_user(conn, id)?;
-    // Constant-time compare on top of the lookup to avoid timing leaks.
-    if user.api_key.as_bytes().ct_eq(key.as_bytes()).into() {
-        Some(user)
-    } else {
-        None
-    }
-}
-
 pub fn create_session(conn: &Connection, user_id: i64) -> rusqlite::Result<String> {
     let token = new_session_token();
     conn.execute(

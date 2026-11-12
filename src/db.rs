@@ -198,8 +198,15 @@ fn migrate(conn: &Connection) -> Result<()> {
         CREATE INDEX IF NOT EXISTS idx_posts_md5 ON posts(md5);
         CREATE INDEX IF NOT EXISTS idx_fav_user ON favorites(user_id);
         CREATE INDEX IF NOT EXISTS idx_comments_post ON comments(post_id);
+        CREATE INDEX IF NOT EXISTS idx_sessions_created ON sessions(created_at);
         "#,
     )?;
+    if let Err(e) = conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_name_nocase ON users(name COLLATE NOCASE)",
+        [],
+    ) {
+        tracing::warn!("case-insensitive username index skipped: {e}");
+    }
     Ok(())
 }
 

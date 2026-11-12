@@ -107,6 +107,7 @@ async fn metrics(State(state): State<AppState>) -> String {
 
 async fn serve_media(
     State(state): State<AppState>,
+    auth: auth::ApiAuth,
     Path((kind, prefix, file)): Path<(String, String, String)>,
     request: axum::extract::Request,
 ) -> Response {
@@ -135,7 +136,8 @@ async fn serve_media(
                 .ok()
             })
             .unwrap_or(true);
-        if deleted {
+        let admin = auth.user().map(|u| u.is_admin()).unwrap_or(false);
+        if deleted && !admin {
             return (StatusCode::NOT_FOUND, "not found").into_response();
         }
     }

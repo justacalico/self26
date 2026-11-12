@@ -207,6 +207,13 @@ pub async fn show_comment(
         .map_err(|_| ApiError::not_found())?;
     let conn = state.db.lock().map_err(ApiError::internal)?;
     let c = get_comment(&conn, id).ok_or_else(ApiError::not_found)?;
+    let viewer = auth.user();
+    let privileged = viewer
+        .map(|u| u.is_admin() || u.id == c.creator_id)
+        .unwrap_or(false);
+    if c.is_hidden && !privileged {
+        return Err(ApiError::not_found());
+    }
     Ok(Json(comment_json(&conn, &c, auth.id())))
 }
 
@@ -225,6 +232,12 @@ pub async fn update_comment(
     let c = get_comment(&conn, id).ok_or_else(ApiError::not_found)?;
     if c.creator_id != user.id && !user.is_admin() {
         return Err(ApiError::forbidden());
+    }
+    if db::get_post(&conn, c.post_id)
+        .map(|p| p.is_deleted)
+        .unwrap_or(true)
+    {
+        return Err(ApiError::not_found());
     }
     if let Some(text) = field(&form, "body") {
         conn.execute(
@@ -267,6 +280,12 @@ pub async fn delete_comment(
     if c.creator_id != user.id && !user.is_admin() {
         return Err(ApiError::forbidden());
     }
+    if db::get_post(&conn, c.post_id)
+        .map(|p| p.is_deleted)
+        .unwrap_or(true)
+    {
+        return Err(ApiError::not_found());
+    }
     conn.execute("DELETE FROM comments WHERE id = ?1", params![id])
         .map_err(ApiError::internal)?;
     Ok(Json(json!({ "success": true })))
@@ -303,7 +322,11 @@ pub async fn vote_comment(
     if c.creator_id == user.id {
         return Err(ApiError::bad_request("cannot vote on your own comment"));
     }
-    if c.is_hidden {
+    if c.is_hidden
+        || db::get_post(&conn, c.post_id)
+            .map(|p| p.is_deleted)
+            .unwrap_or(true)
+    {
         return Err(ApiError::not_found());
     }
     let old: i64 = conn

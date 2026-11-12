@@ -164,7 +164,8 @@ pub(crate) fn base_url_pub(headers: &HeaderMap, configured: &str) -> String {
         .get("host")
         .and_then(|h| h.to_str().ok())
         .unwrap_or_default();
-    if host.len() > 253
+    if host.is_empty()
+        || host.len() > 253
         || !host
             .bytes()
             .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-' | b':' | b'[' | b']'))
@@ -230,7 +231,10 @@ pub async fn list_posts(
         let wants_status = params
             .tags
             .as_deref()
-            .map(|t| t.split_whitespace().any(|tok| tok.starts_with("status:")))
+            .map(|t| {
+                t.split_whitespace()
+                    .any(|tok| tok.trim_start_matches(['-', '~']).starts_with("status:"))
+            })
             .unwrap_or(false);
         let admin = auth.user().map(|u| u.is_admin()).unwrap_or(false);
         let mut conds = Vec::new();
@@ -240,7 +244,9 @@ pub async fn list_posts(
         if !q.where_sql.is_empty() {
             conds.push(q.where_sql.clone());
         }
-        sql.push_str(&format!(" WHERE {}", conds.join(" AND ")));
+        if !conds.is_empty() {
+            sql.push_str(&format!(" WHERE {}", conds.join(" AND ")));
+        }
         sql.push_str(&format!(
             " ORDER BY {} LIMIT {} OFFSET {}",
             q.order_sql, q.limit, page.offset
@@ -491,12 +497,33 @@ pub async fn update_post(
     }
 
     if let Some(tags) = form.get("tag_string").or_else(|| form.get("tags")) {
-        let merged = if user.is_admin() || post.locked_tags.is_empty() {
-            tags.to_string()
+        if user.is_admin() || post.locked_tags.is_empty() {
+            apply_tag_edits(&conn, id, tags)?;
         } else {
-            format!("{} {}", tags, post.locked_tags.join(" "))
-        };
-        apply_tag_edits(&conn, id, &merged)?;
+            let before: std::collections::HashSet<String> =
+                db::post_tags(&conn, id).into_iter().map(|t| t.0).collect();
+            apply_tag_edits(&conn, id, tags)?;
+            let mut now: std::collections::HashSet<String> =
+                db::post_tags(&conn, id).into_iter().map(|t| t.0).collect();
+            let mut changed = false;
+            for lt in &post.locked_tags {
+                match (before.contains(lt), now.contains(lt)) {
+                    (true, false) => {
+                        now.insert(lt.clone());
+                        changed = true;
+                    }
+                    (false, true) => {
+                        now.remove(lt);
+                        changed = true;
+                    }
+                    _ => {}
+                }
+            }
+            if changed {
+                db::set_post_tags(&conn, id, &now.into_iter().collect::<Vec<_>>())
+                    .map_err(ApiError::internal)?;
+            }
+        }
     }
     if let Some(r) = form.get("rating") {
         if !post.rating_locked || user.is_admin() {
@@ -628,17 +655,28 @@ pub async fn random_post(
     let base = base_url_pub(&headers, &state.base_url);
     let conn = state.db.lock().map_err(ApiError::internal)?;
     let (page, _) = search::page_params(Some("1"), Some(1));
-    let mut q = search::parse(
+    let q = search::parse(
         params.get("tags").map(String::as_str).unwrap_or_default(),
         page,
     );
-    q.order_sql = "RANDOM()".into();
-    let mut sql = format!(
-        "SELECT {} FROM posts WHERE posts.is_deleted = 0",
-        db::POST_COLS
-    );
+    let admin = auth.user().map(|u| u.is_admin()).unwrap_or(false);
+    let wants_status = params
+        .get("tags")
+        .map(|t| {
+            t.split_whitespace()
+                .any(|tok| tok.trim_start_matches(['-', '~']).starts_with("status:"))
+        })
+        .unwrap_or(false);
+    let mut sql = format!("SELECT {} FROM posts", db::POST_COLS);
+    let mut conds = Vec::new();
+    if !(admin && wants_status) {
+        conds.push("posts.is_deleted = 0".to_string());
+    }
     if !q.where_sql.is_empty() {
-        sql.push_str(&format!(" AND {}", q.where_sql));
+        conds.push(q.where_sql.clone());
+    }
+    if !conds.is_empty() {
+        sql.push_str(&format!(" WHERE {}", conds.join(" AND ")));
     }
     sql.push_str(" ORDER BY RANDOM() LIMIT 1");
     let params_refs: Vec<&dyn rusqlite::ToSql> = q.params.iter().map(|p| p.as_ref()).collect();

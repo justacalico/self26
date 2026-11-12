@@ -169,7 +169,7 @@ pub async fn update_note(
         return Err(ApiError::forbidden());
     }
     let post = db::get_post(&conn, note.post_id).ok_or_else(ApiError::not_found)?;
-    if post.note_locked && !user.is_admin() {
+    if post.is_deleted || (post.note_locked && !user.is_admin()) {
         return Err(ApiError::forbidden());
     }
     for (key, col) in [
@@ -224,7 +224,7 @@ pub async fn delete_note(
         return Err(ApiError::forbidden());
     }
     let post = db::get_post(&conn, n.post_id).ok_or_else(ApiError::not_found)?;
-    if post.note_locked && !user.is_admin() {
+    if post.is_deleted || (post.note_locked && !user.is_admin()) {
         return Err(ApiError::forbidden());
     }
     conn.execute(

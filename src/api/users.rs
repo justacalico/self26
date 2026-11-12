@@ -110,10 +110,7 @@ pub async fn show_user(
     } else {
         auth::user_by_name(&conn, raw).ok_or_else(ApiError::not_found)?
     };
-    let full = auth
-        .user()
-        .map(|a| a.is_admin() || a.id == user.id)
-        .unwrap_or(false);
+    let full = auth.id() == Some(user.id);
     Ok(Json(user_json(&conn, &user, full)))
 }
 

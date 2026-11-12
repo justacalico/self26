@@ -77,6 +77,211 @@ async fn locked_tags_kept_on_member_edit() {
 }
 
 #[tokio::test]
+async fn absent_locked_tag_stays_absent_for_member() {
+    let app = spawn().await;
+    let (_, akey) = add_admin(&app);
+    let (_, mkey) = add_member(&app);
+    let id = seed_post(&app, "admin", &akey, 1, "cat").await;
+
+    let res = app
+        .authed(
+            reqwest::Method::PUT,
+            &format!("/posts/{id}.json"),
+            "admin",
+            &akey,
+        )
+        .form(&[("locked_tags", "newtag")])
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status(), 200);
+
+    let res = app
+        .authed(
+            reqwest::Method::PUT,
+            &format!("/posts/{id}.json"),
+            "member",
+            &mkey,
+        )
+        .form(&[("post[tag_string]", "cat dog newtag")])
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status(), 200);
+
+    let res = app.get(&format!("/posts/{id}.json")).send().await.unwrap();
+    let body: Value = res.json().await.unwrap();
+    let tags = body["post"]["tags"]["general"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|t| t.as_str().unwrap().to_string())
+        .collect::<Vec<_>>();
+    assert!(!tags.contains(&"newtag".to_string()));
+    assert!(tags.contains(&"dog".to_string()));
+}
+
+#[tokio::test]
+async fn admin_can_fetch_deleted_media() {
+    let app = spawn().await;
+    let (_, akey) = add_admin(&app);
+    let (_, mkey) = add_member(&app);
+    let id = seed_post(&app, "admin", &akey, 1, "cat").await;
+
+    let res = app
+        .get(&format!("/posts/{id}.json?v2=1"))
+        .send()
+        .await
+        .unwrap();
+    let body: Value = res.json().await.unwrap();
+    let url = body["files"]["original"]["url"]
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    app.authed(
+        reqwest::Method::DELETE,
+        &format!("/posts/{id}.json"),
+        "admin",
+        &akey,
+    )
+    .send()
+    .await
+    .unwrap();
+
+    let res = app.client.get(&url).send().await.unwrap();
+    assert_eq!(res.status(), 404);
+
+    let res = app
+        .client
+        .get(&url)
+        .basic_auth("admin", Some(&akey))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status(), 200);
+
+    let res = app
+        .client
+        .get(&url)
+        .basic_auth("member", Some(&mkey))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status(), 404);
+}
+
+#[tokio::test]
+async fn hidden_comment_only_visible_to_creator_and_admin() {
+    let app = spawn().await;
+    let (_, akey) = add_admin(&app);
+    let (_, mkey) = add_member(&app);
+    let (_, okey) = add_user(&app, "other", "otherpw", 20);
+    let id = seed_post(&app, "member", &mkey, 1, "cat").await;
+
+    let res = app
+        .authed(reqwest::Method::POST, "/comments.json", "member", &mkey)
+        .form(&[
+            ("comment[post_id]", &id.to_string()),
+            ("comment[body]", &"hi".to_string()),
+        ])
+        .send()
+        .await
+        .unwrap();
+    let body: Value = res.json().await.unwrap();
+    let cid = body["id"].as_i64().unwrap();
+
+    let res = app
+        .authed(
+            reqwest::Method::PUT,
+            &format!("/comments/{cid}.json"),
+            "admin",
+            &akey,
+        )
+        .form(&[("comment[is_hidden]", "1")])
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status(), 200);
+
+    let res = app
+        .get(&format!("/comments/{cid}.json"))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status(), 404);
+
+    let res = app
+        .authed(
+            reqwest::Method::GET,
+            &format!("/comments/{cid}.json"),
+            "other",
+            &okey,
+        )
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status(), 404);
+
+    let res = app
+        .authed(
+            reqwest::Method::GET,
+            &format!("/comments/{cid}.json"),
+            "member",
+            &mkey,
+        )
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status(), 200);
+
+    let res = app
+        .authed(
+            reqwest::Method::GET,
+            &format!("/comments/{cid}.json"),
+            "admin",
+            &akey,
+        )
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status(), 200);
+}
+
+#[tokio::test]
+async fn show_user_hides_api_key_from_admin() {
+    let app = spawn().await;
+    let (_, akey) = add_admin(&app);
+    let (mid, mkey) = add_member(&app);
+
+    let res = app
+        .authed(
+            reqwest::Method::GET,
+            &format!("/users/{mid}.json"),
+            "admin",
+            &akey,
+        )
+        .send()
+        .await
+        .unwrap();
+    let body: Value = res.json().await.unwrap();
+    assert!(body["api_key"].is_null());
+
+    let res = app
+        .authed(
+            reqwest::Method::GET,
+            &format!("/users/{mid}.json"),
+            "member",
+            &mkey,
+        )
+        .send()
+        .await
+        .unwrap();
+    let body: Value = res.json().await.unwrap();
+    assert_eq!(body["api_key"], mkey);
+}
+
+#[tokio::test]
 async fn member_can_edit_tags_but_not_rating() {
     let app = spawn().await;
     let (_, akey) = add_admin(&app);
