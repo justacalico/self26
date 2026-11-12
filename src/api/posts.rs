@@ -328,8 +328,8 @@ pub async fn create_post(
 
     {
         let conn = state.db.lock().map_err(ApiError::internal)?;
-        if let Ok(existing) = conn
-            .query_row("SELECT id FROM posts WHERE md5 = ?1", params![md5], |r| {
+        if let Ok(existing) =
+            conn.query_row("SELECT id FROM posts WHERE md5 = ?1", params![md5], |r| {
                 r.get::<_, i64>(0)
             })
         {
