@@ -87,7 +87,7 @@ jobs:
           fetch-tags: true
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.88.0
+        uses: dtolnay/rust-toolchain@1.99.0
         with:
           components: rustfmt, clippy
 
@@ -208,7 +208,7 @@ jobs:
 
       - name: Install Rust
         if: startsWith(matrix.target, 'server') || startsWith(matrix.target, 'linux') || startsWith(matrix.target, 'windows') || startsWith(matrix.target, 'flatpak') || matrix.target == 'macos'
-        uses: dtolnay/rust-toolchain@1.88.0
+        uses: dtolnay/rust-toolchain@1.99.0
 
       - name: Cache Rust
         if: startsWith(matrix.target, 'server') || startsWith(matrix.target, 'linux') || startsWith(matrix.target, 'windows') || startsWith(matrix.target, 'flatpak') || matrix.target == 'macos'
