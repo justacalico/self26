@@ -2,6 +2,13 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.1.5 - 2026-11-12
+#### Bug Fixes
+- 登录限流并消除用户枚举时序差 - (da4188a) - calico
+- 修正用户更新返回值与上传残留清理 - (5e8cf36) - calico
+
+- - -
+
 ## v0.1.4 - 2026-11-12
 #### Bug Fixes
 - 收紧隐藏内容、锁定标签与媒体访问 - (9991fa8) - calico
