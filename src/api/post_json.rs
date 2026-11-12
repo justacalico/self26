@@ -35,14 +35,30 @@ impl PostFormat {
 }
 
 fn data_url(base: &str, p: &StoredPost, kind: &str, ext: &str) -> String {
+    let prefix = p.md5.get(..2).unwrap_or(&p.md5);
     format!(
         "{}/data/{}/{}/{}.{}",
         base.trim_end_matches('/'),
         kind,
-        &p.md5[..2],
+        prefix,
         p.md5,
         ext
     )
+}
+
+fn viewer_is_admin(conn: &Connection, viewer: Option<i64>) -> bool {
+    viewer
+        .and_then(|id| crate::auth::get_user(conn, id))
+        .map(|u| u.is_admin())
+        .unwrap_or(false)
+}
+
+fn media_url(hide: bool, url: String) -> Value {
+    if hide {
+        Value::Null
+    } else {
+        json!(url)
+    }
 }
 
 /// Serialize one post for list/index responses.
@@ -134,6 +150,7 @@ fn legacy_post(conn: &Connection, p: &StoredPost, base: &str, viewer: Option<i64
         .into_iter()
         .map(|(n, _)| n)
         .collect();
+    let hide_media = p.is_deleted && !viewer_is_admin(conn, viewer);
     let file_url = data_url(base, p, "original", &p.ext);
     let preview_url = data_url(base, p, "preview", "jpg");
     let sample_url = if p.has_sample {
@@ -152,14 +169,18 @@ fn legacy_post(conn: &Connection, p: &StoredPost, base: &str, viewer: Option<i64
             "ext": p.ext,
             "size": p.size,
             "md5": p.md5,
-            "url": file_url,
+            "url": media_url(hide_media, file_url),
         },
-        "preview": { "width": pw, "height": ph, "url": preview_url },
+        "preview": {
+            "width": pw,
+            "height": ph,
+            "url": media_url(hide_media, preview_url),
+        },
         "sample": {
             "has": p.has_sample,
             "width": sw,
             "height": sh,
-            "url": sample_url,
+            "url": media_url(hide_media, sample_url),
             "alternates": {},
         },
         "score": { "up": up, "down": down, "total": up - down },
@@ -217,6 +238,7 @@ fn v2_post(
     let (pw, ph) = preview_dims(p);
     let (sw, sh) = sample_dims(p);
     let children = db::post_children(conn, p.id);
+    let hide_media = p.is_deleted && !viewer_is_admin(conn, viewer);
     let file_url = data_url(base, p, "original", &p.ext);
     let is_video = matches!(p.ext.as_str(), "webm" | "mp4" | "mov");
 
@@ -228,18 +250,22 @@ fn v2_post(
             "duration": p.duration,
             "has_sample": p.has_sample,
         },
-        "original": { "width": p.width, "height": p.height, "url": file_url },
+        "original": {
+            "width": p.width,
+            "height": p.height,
+            "url": media_url(hide_media, file_url),
+        },
         "preview": {
             "width": pw,
             "height": ph,
-            "jpg": data_url(base, p, "preview", "jpg"),
-            "webp": data_url(base, p, "preview", "webp"),
+            "jpg": media_url(hide_media, data_url(base, p, "preview", "jpg")),
+            "webp": media_url(hide_media, data_url(base, p, "preview", "webp")),
         },
         "sample": {
             "width": sw,
             "height": sh,
-            "jpg": data_url(base, p, "sample", "jpg"),
-            "webp": data_url(base, p, "sample", "webp"),
+            "jpg": media_url(hide_media, data_url(base, p, "sample", "jpg")),
+            "webp": media_url(hide_media, data_url(base, p, "sample", "webp")),
         },
     });
     if is_video {
@@ -247,7 +273,7 @@ fn v2_post(
             "has": true,
             "original": { "fps": Value::Null, "codec": Value::Null, "size": p.size,
                           "width": p.width, "height": p.height,
-                          "url": data_url(base, p, "original", &p.ext) },
+                          "url": media_url(hide_media, data_url(base, p, "original", &p.ext)) },
             "variants": {},
             "samples": {},
         });
@@ -316,6 +342,7 @@ fn thumbnail_post(conn: &Connection, p: &StoredPost, base: &str, viewer: Option<
         flags.push("deleted");
     }
 
+    let hide_media = p.is_deleted && !viewer_is_admin(conn, viewer);
     json!({
         "id": p.id,
         "created_at": p.created_at,
@@ -325,10 +352,10 @@ fn thumbnail_post(conn: &Connection, p: &StoredPost, base: &str, viewer: Option<
         "height": p.height,
         "size": p.size,
         "duration": p.duration,
-        "preview_url": data_url(base, p, "preview", "jpg"),
-        "preview_webp": data_url(base, p, "preview", "webp"),
-        "sample_url": data_url(base, p, "sample", "jpg"),
-        "file_url": data_url(base, p, "original", &p.ext),
+        "preview_url": media_url(hide_media, data_url(base, p, "preview", "jpg")),
+        "preview_webp": media_url(hide_media, data_url(base, p, "preview", "webp")),
+        "sample_url": media_url(hide_media, data_url(base, p, "sample", "jpg")),
+        "file_url": media_url(hide_media, data_url(base, p, "original", &p.ext)),
         "preview_width": pw,
         "preview_height": ph,
         "uploader_id": p.uploader_id,

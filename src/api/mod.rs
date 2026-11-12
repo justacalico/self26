@@ -50,7 +50,8 @@ impl ApiError {
     }
 
     pub fn internal(e: impl std::fmt::Display) -> Self {
-        Self::new(StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
+        tracing::error!("internal error: {e}");
+        Self::new(StatusCode::INTERNAL_SERVER_ERROR, "internal error")
     }
 }
 

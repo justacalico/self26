@@ -138,7 +138,10 @@ pub async fn update_user(
         if !pw.is_empty() {
             conn.execute(
                 "UPDATE users SET password_hash = ?1 WHERE id = ?2",
-                params![auth::hash_password(pw), id],
+                params![
+                    auth::hash_password(pw).ok_or_else(|| ApiError::internal("hash"))?,
+                    id
+                ],
             )
             .map_err(ApiError::internal)?;
         }
@@ -162,6 +165,15 @@ pub async fn create_user(
     auth: ApiAuth,
     request: axum::extract::Request,
 ) -> ApiResult<(StatusCode, Json<Value>)> {
+    let first = {
+        let conn = state.db.lock().map_err(ApiError::internal)?;
+        conn.query_row("SELECT COUNT(*) FROM users", [], |r| r.get::<_, i64>(0))
+            .map_err(ApiError::internal)?
+            == 0
+    };
+    if !first && !auth.user().map(|u| u.is_admin()).unwrap_or(false) {
+        return Err(ApiError::forbidden());
+    }
     let form = read_post_form(request).await?;
     let name = form
         .get("name")
@@ -180,13 +192,6 @@ pub async fn create_user(
         ));
     }
     let conn = state.db.lock().map_err(ApiError::internal)?;
-    let user_count: i64 = conn
-        .query_row("SELECT COUNT(*) FROM users", [], |r| r.get(0))
-        .unwrap_or(0);
-    let first = user_count == 0;
-    if !first && !auth.user().map(|u| u.is_admin()).unwrap_or(false) {
-        return Err(ApiError::forbidden());
-    }
     let level = if first {
         StoredUser::LEVEL_ADMIN
     } else {

@@ -15,12 +15,12 @@ use crate::db;
 use crate::models::StoredUser;
 use crate::AppState;
 
-pub fn hash_password(password: &str) -> String {
+pub fn hash_password(password: &str) -> Option<String> {
     let salt = SaltString::generate(&mut OsRng);
     Argon2::default()
         .hash_password(password.as_bytes(), &salt)
         .map(|h| h.to_string())
-        .unwrap_or_default()
+        .ok()
 }
 
 pub fn verify_password(password: &str, hash: &str) -> bool {
@@ -55,7 +55,7 @@ pub fn create_user(
          VALUES (?1, ?2, ?3, ?4, ?5)",
         params![
             name,
-            hash_password(password),
+            hash_password(password).ok_or(rusqlite::Error::InvalidQuery)?,
             new_api_key(),
             level,
             db::ts(Utc::now())
@@ -122,10 +122,11 @@ pub fn create_session(conn: &Connection, user_id: i64) -> rusqlite::Result<Strin
 }
 
 pub fn user_by_session(conn: &Connection, token: &str) -> Option<StoredUser> {
+    let cutoff = db::ts(Utc::now() - chrono::Duration::days(30));
     let id: i64 = conn
         .query_row(
-            "SELECT user_id FROM sessions WHERE token = ?1",
-            params![token],
+            "SELECT user_id FROM sessions WHERE token = ?1 AND created_at > ?2",
+            params![token, cutoff],
             |r| r.get(0),
         )
         .ok()?;

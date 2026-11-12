@@ -47,8 +47,10 @@ fn row_to_flag(r: &rusqlite::Row) -> rusqlite::Result<StoredFlag> {
 
 pub async fn list_flags(
     State(state): State<AppState>,
+    auth: ApiAuth,
     Query(params): Query<HashMap<String, String>>,
 ) -> ApiResult<Json<Value>> {
+    auth.user().ok_or_else(ApiError::unauthorized)?;
     let conn = state.db.lock().map_err(ApiError::internal)?;
     let mut sql = "SELECT * FROM post_flags WHERE 1=1".to_string();
     let mut args: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
@@ -77,8 +79,10 @@ pub async fn list_flags(
 
 pub async fn show_flag(
     State(state): State<AppState>,
+    auth: ApiAuth,
     Path(id): Path<String>,
 ) -> ApiResult<Json<Value>> {
+    auth.user().ok_or_else(ApiError::unauthorized)?;
     let id: i64 = strip_json_suffix(&id)
         .parse()
         .map_err(|_| ApiError::not_found())?;

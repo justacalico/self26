@@ -51,17 +51,24 @@ pub async fn read_post_form(req: axum::extract::Request) -> ApiResult<PostForm> 
         let mut mp = <Multipart as FromRequest<()>>::from_request(req, &())
             .await
             .map_err(|e| ApiError::bad_request(e.body_text()))?;
-        while let Ok(Some(field)) = mp.next_field().await {
+        while let Ok(Some(mut field)) = mp.next_field().await {
             let name = field.name().unwrap_or_default().to_string();
+            let mut data = Vec::new();
+            while let Ok(Some(chunk)) = field.chunk().await {
+                data.extend_from_slice(&chunk);
+                if data.len() > 128 * 1024 * 1024 {
+                    return Err(ApiError::bad_request("body too large"));
+                }
+            }
             if name.contains("file") || field.file_name().is_some() {
                 let fname = field.file_name().unwrap_or("upload.bin").to_string();
-                if let Ok(data) = field.bytes().await {
-                    if !data.is_empty() {
-                        form.file = Some((fname, data));
-                    }
+                if !data.is_empty() {
+                    form.file = Some((fname, data.into()));
                 }
-            } else if let Ok(text) = field.text().await {
-                push_field(&mut form.fields, name, text);
+            } else if let Ok(text) = String::from_utf8(data) {
+                if text.len() <= 1024 * 1024 {
+                    push_field(&mut form.fields, name, text);
+                }
             }
         }
         return Ok(form);
@@ -325,6 +332,12 @@ pub async fn create_post(
     };
     let md5 = media::file_md5(&bytes);
     let ext = media::file_ext(&bytes, &filename);
+    if ext == "bin" {
+        return Err(ApiError::new(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "file type not supported",
+        ));
+    }
 
     {
         let conn = state.db.lock().map_err(ApiError::internal)?;
@@ -342,10 +355,15 @@ pub async fn create_post(
         }
     }
 
-    let info = state
-        .media
-        .store(&bytes, &md5, &ext)
-        .map_err(ApiError::internal)?;
+    let media_proc = state.media.clone();
+    let store_bytes = bytes.clone();
+    let store_md5 = md5.clone();
+    let store_ext = ext.clone();
+    let info =
+        tokio::task::spawn_blocking(move || media_proc.store(&store_bytes, &store_md5, &store_ext))
+            .await
+            .map_err(ApiError::internal)?
+            .map_err(ApiError::internal)?;
 
     let rating = Rating::parse(form.get("rating").unwrap_or("s")).unwrap_or(Rating::S);
     let sources: Vec<String> = form

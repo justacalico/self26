@@ -142,7 +142,7 @@ pub fn page_params(page: Option<&str>, limit: Option<i64>) -> (Page, Option<(cha
         } else if let Some(id) = p.strip_prefix('a').and_then(|s| s.parse::<i64>().ok()) {
             boundary = Some(('a', id));
         } else if let Ok(n) = p.parse::<i64>() {
-            offset = (n - 1).max(0) * limit;
+            offset = (n - 1).max(0).saturating_mul(limit);
         }
     }
     (Page { limit, offset }, boundary)
@@ -316,7 +316,11 @@ fn term_rejoin(key: &str, value: &str) -> String {
 
 /// Parse an `age:` value like `1d`, `2w`, `3h`, `30m`, `1y` into seconds.
 fn parse_age(v: &str) -> Option<i64> {
-    let (num, unit) = v.split_at(v.len().saturating_sub(1));
+    let split = v
+        .rfind(|c: char| c.is_ascii_digit())
+        .map(|i| i + 1)
+        .unwrap_or(v.len());
+    let (num, unit) = v.split_at(split);
     let n: i64 = num.parse().ok()?;
     Some(match unit {
         "s" => n,
@@ -326,6 +330,6 @@ fn parse_age(v: &str) -> Option<i64> {
         "w" => n * 604800,
         "mo" => n * 2592000,
         "y" => n * 31536000,
-        _ => n * 86400,
+        _ => return None,
     })
 }

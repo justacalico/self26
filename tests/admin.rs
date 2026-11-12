@@ -32,6 +32,13 @@ async fn flag_flow_and_admin_resolve() {
 
     let res = app
         .get("/post_flags.json")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status(), 401);
+
+    let res = app
+        .authed(reqwest::Method::GET, "/post_flags.json", "admin", &akey)
         .query(&[("search[is_resolved]", "false")])
         .send()
         .await
@@ -64,7 +71,7 @@ async fn flag_flow_and_admin_resolve() {
     assert_eq!(res.status(), 200);
 
     let res = app
-        .get(&format!("/post_flags/{fid}.json"))
+        .authed(reqwest::Method::GET, &format!("/post_flags/{fid}.json"), "admin", &akey)
         .send()
         .await
         .unwrap();

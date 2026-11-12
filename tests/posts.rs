@@ -334,6 +334,69 @@ async fn delete_post_removes_from_listing() {
     let res = app.get(&format!("/posts/{id}.json")).send().await.unwrap();
     let body: Value = res.json().await.unwrap();
     assert_eq!(body["post"]["flags"]["deleted"], true);
+    assert_eq!(body["post"]["file"]["url"], Value::Null);
+
+    let res = app
+        .authed(reqwest::Method::GET, &format!("/posts/{id}.json"), "admin", &key)
+        .send()
+        .await
+        .unwrap();
+    let body: Value = res.json().await.unwrap();
+    assert!(body["post"]["file"]["url"].is_string());
+}
+
+#[tokio::test]
+async fn deleted_media_not_served() {
+    let app = spawn().await;
+    let (_, key) = add_admin(&app);
+    let res = upload(
+        &app,
+        "admin",
+        &key,
+        png_bytes(16, 16, 70),
+        "x.png",
+        &[],
+    )
+    .await;
+    assert_eq!(res.status(), 201);
+    let body: Value = res.json().await.unwrap();
+    let id = body["post_id"].as_i64().unwrap();
+    let url = body["post"]["file"]["url"].as_str().unwrap().to_string();
+    let media_path = url[url.find("/data/").unwrap()..].to_string();
+
+    let res = app.get(&media_path).send().await.unwrap();
+    assert_eq!(res.status(), 200);
+
+    let res = app
+        .authed(
+            reqwest::Method::DELETE,
+            &format!("/posts/{id}.json"),
+            "admin",
+            &key,
+        )
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status(), 200);
+
+    let res = app.get(&media_path).send().await.unwrap();
+    assert_eq!(res.status(), 404);
+}
+
+#[tokio::test]
+async fn upload_rejects_unsupported_type() {
+    let app = spawn().await;
+    let (_, key) = add_admin(&app);
+    let res = upload(
+        &app,
+        "admin",
+        &key,
+        b"<html><script>alert(1)</script></html>".to_vec(),
+        "evil.html",
+        &[],
+    )
+    .await;
+    assert_eq!(res.status(), 422);
 }
 
 #[tokio::test]

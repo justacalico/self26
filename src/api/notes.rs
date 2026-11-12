@@ -168,6 +168,10 @@ pub async fn update_note(
     if note.creator_id != user.id && !user.is_admin() {
         return Err(ApiError::forbidden());
     }
+    let post = db::get_post(&conn, note.post_id).ok_or_else(ApiError::not_found)?;
+    if post.note_locked && !user.is_admin() {
+        return Err(ApiError::forbidden());
+    }
     for (key, col) in [
         ("x", "x"),
         ("y", "y"),
@@ -217,6 +221,10 @@ pub async fn delete_note(
     let conn = state.db.lock().map_err(ApiError::internal)?;
     let n = get_note(&conn, id).ok_or_else(ApiError::not_found)?;
     if n.creator_id != user.id && !user.is_admin() {
+        return Err(ApiError::forbidden());
+    }
+    let post = db::get_post(&conn, n.post_id).ok_or_else(ApiError::not_found)?;
+    if post.note_locked && !user.is_admin() {
         return Err(ApiError::forbidden());
     }
     conn.execute(

@@ -117,12 +117,23 @@ pub fn file_ext(bytes: &[u8], filename: &str) -> String {
     } else {
         None
     };
-    sniffed
+    let ext = sniffed
         .map(String::from)
         .or_else(|| {
             Path::new(filename)
                 .extension()
                 .map(|e| e.to_string_lossy().to_lowercase())
         })
-        .unwrap_or_else(|| "bin".into())
+        .unwrap_or_else(|| "bin".into());
+    match ext.as_str() {
+        "jpeg" => "jpg".into(),
+        e if matches!(
+            e,
+            "png" | "jpg" | "gif" | "webp" | "webm" | "mp4" | "swf" | "pdf"
+        ) =>
+        {
+            e.into()
+        }
+        _ => "bin".into(),
+    }
 }

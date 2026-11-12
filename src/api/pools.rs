@@ -186,7 +186,7 @@ pub async fn create_pool(
         _ => "series",
     };
     let now = db::ts(Utc::now());
-    let conn = state.db.lock().map_err(ApiError::internal)?;
+    let mut conn = state.db.lock().map_err(ApiError::internal)?;
     conn.execute(
         "INSERT INTO pools (name, description, creator_id, category, created_at, updated_at)
          VALUES (?1, ?2, ?3, ?4, ?5, ?5)",
@@ -197,36 +197,36 @@ pub async fn create_pool(
         .query_row("SELECT last_insert_rowid()", [], |r| r.get(0))
         .map_err(ApiError::internal)?;
     if let Some(ids) = form.get("post_ids").or_else(|| form.get("pool[post_ids]")) {
-        set_pool_posts(&conn, id, ids)?;
+        set_pool_posts(&mut conn, id, ids)?;
     }
     let pool = get_pool(&conn, id).ok_or_else(ApiError::not_found)?;
     Ok((StatusCode::CREATED, Json(pool_json(&conn, &pool))))
 }
 
-fn set_pool_posts(conn: &rusqlite::Connection, pool_id: i64, ids_raw: &str) -> ApiResult<()> {
-    conn.execute(
+fn set_pool_posts(conn: &mut rusqlite::Connection, pool_id: i64, ids_raw: &str) -> ApiResult<()> {
+    let tx = conn.transaction().map_err(ApiError::internal)?;
+    tx.execute(
         "DELETE FROM pool_posts WHERE pool_id = ?1",
         params![pool_id],
     )
     .map_err(ApiError::internal)?;
     let cleaned = ids_raw.replace(['[', ']'], " ");
-    for (ord, piece) in cleaned
-        .split(|c: char| c.is_whitespace() || c == ',')
-        .enumerate()
-    {
+    let mut ord = 0i64;
+    for piece in cleaned.split(|c: char| c.is_whitespace() || c == ',') {
         let piece = piece.trim();
         if piece.is_empty() {
             continue;
         }
         if let Ok(pid) = piece.parse::<i64>() {
-            conn.execute(
+            tx.execute(
                 "INSERT OR IGNORE INTO pool_posts (pool_id, post_id, ord) VALUES (?1, ?2, ?3)",
-                params![pool_id, pid, ord as i64],
+                params![pool_id, pid, ord],
             )
             .map_err(ApiError::internal)?;
+            ord += 1;
         }
     }
-    Ok(())
+    tx.commit().map_err(ApiError::internal)
 }
 
 pub async fn update_pool(
@@ -240,7 +240,7 @@ pub async fn update_pool(
         .map_err(|_| ApiError::not_found())?;
     let user = auth.user().cloned().ok_or_else(ApiError::unauthorized)?;
     let form = read_post_form(request).await?;
-    let conn = state.db.lock().map_err(ApiError::internal)?;
+    let mut conn = state.db.lock().map_err(ApiError::internal)?;
     let pool = get_pool(&conn, id).ok_or_else(ApiError::not_found)?;
     if pool.creator_id != user.id && !user.is_admin() {
         return Err(ApiError::forbidden());
@@ -263,7 +263,7 @@ pub async fn update_pool(
         .map_err(ApiError::internal)?;
     }
     if let Some(ids) = form.get("post_ids").or_else(|| form.get("pool[post_ids]")) {
-        set_pool_posts(&conn, id, ids)?;
+        set_pool_posts(&mut conn, id, ids)?;
     }
     if let Some(cat) = form.get("category").or_else(|| form.get("pool[category]")) {
         let cat = if cat == "collection" {

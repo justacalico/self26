@@ -119,10 +119,34 @@ async fn serve_media(
     if !path.starts_with(state.media.data_dir.join(&kind)) {
         return (StatusCode::NOT_FOUND, "not found").into_response();
     }
+    if kind == "original" {
+        if let Some(md5) = file.split('.').next() {
+            let deleted: bool = state
+                .db
+                .lock()
+                .ok()
+                .and_then(|conn| {
+                    conn.query_row(
+                        "SELECT is_deleted FROM posts WHERE md5 = ?1",
+                        rusqlite::params![md5],
+                        |r| r.get(0),
+                    )
+                    .ok()
+                })
+                .unwrap_or(false);
+            if deleted {
+                return (StatusCode::NOT_FOUND, "not found").into_response();
+            }
+        }
+    }
     match tokio::fs::read(&path).await {
         Ok(bytes) => {
             let mime = mime_guess::from_path(&path).first_or_octet_stream();
             let mut resp = Response::new(axum::body::Body::from(bytes));
+            resp.headers_mut().insert(
+                header::HeaderName::from_static("x-content-type-options"),
+                HeaderValue::from_static("nosniff"),
+            );
             resp.headers_mut().insert(
                 header::CONTENT_TYPE,
                 HeaderValue::from_str(mime.as_ref()).unwrap(),
