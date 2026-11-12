@@ -141,6 +141,7 @@ async fn main() -> anyhow::Result<()> {
         media: Arc::new(media),
         base_url: cli.base_url.clone(),
         local_mode: cli.dev,
+        login_attempts: Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
     };
 
     let addr: SocketAddr = format!("{}:{}", cli.host, cli.port).parse()?;

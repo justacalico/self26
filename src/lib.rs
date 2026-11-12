@@ -28,6 +28,8 @@ pub struct AppState {
     pub media: Arc<MediaProcessor>,
     pub base_url: String,
     pub local_mode: bool,
+    pub login_attempts:
+        Arc<std::sync::Mutex<std::collections::HashMap<String, Vec<std::time::Instant>>>>,
 }
 
 pub fn app(state: AppState) -> Router {

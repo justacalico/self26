@@ -49,6 +49,7 @@ pub async fn spawn() -> TestApp {
         media: Arc::new(media),
         base_url: String::new(),
         local_mode: false,
+        login_attempts: Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
     };
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();

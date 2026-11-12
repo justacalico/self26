@@ -233,10 +233,43 @@ pub async fn login(
             }
         }
     }
+    let fail_key = name.to_lowercase();
+    {
+        let mut attempts = state.login_attempts.lock().map_err(ApiError::internal)?;
+        let now = std::time::Instant::now();
+        let v = attempts.entry(fail_key.clone()).or_default();
+        v.retain(|t| now.duration_since(*t) < std::time::Duration::from_secs(600));
+        if v.len() >= 10 {
+            return Err(ApiError::new(
+                StatusCode::TOO_MANY_REQUESTS,
+                "too many login attempts",
+            ));
+        }
+    }
     let conn = state.db.lock().map_err(ApiError::internal)?;
-    let user = auth::user_by_name(&conn, &name)
-        .filter(|u| auth::verify_password(&password, &u.password_hash))
-        .ok_or_else(|| ApiError::new(StatusCode::UNAUTHORIZED, "invalid login or password"))?;
+    let candidate = auth::user_by_name(&conn, &name);
+    let valid = match &candidate {
+        Some(u) => auth::verify_password(&password, &u.password_hash),
+        None => {
+            static DUMMY: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+            let h = DUMMY.get_or_init(|| auth::hash_password("self26").unwrap_or_default());
+            auth::verify_password(&password, h);
+            false
+        }
+    };
+    if !valid {
+        if let Ok(mut attempts) = state.login_attempts.lock() {
+            attempts
+                .entry(fail_key)
+                .or_default()
+                .push(std::time::Instant::now());
+        }
+        return Err(ApiError::new(
+            StatusCode::UNAUTHORIZED,
+            "invalid login or password",
+        ));
+    }
+    let user = candidate.ok_or_else(ApiError::unauthorized)?;
     let token = auth::create_session(&conn, user.id).map_err(ApiError::internal)?;
     let secure = headers
         .get("x-forwarded-proto")

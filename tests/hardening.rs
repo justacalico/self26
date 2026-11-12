@@ -14,6 +14,29 @@ async fn username_uniqueness_is_case_insensitive() {
 }
 
 #[tokio::test]
+async fn login_rate_limited_after_failures() {
+    let app = spawn().await;
+    add_user(&app, "member", "memberpw", 20);
+
+    for _ in 0..10 {
+        let res = app
+            .request(reqwest::Method::POST, "/session.json")
+            .form(&[("name", "member"), ("password", "wrong")])
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(res.status(), 401);
+    }
+    let res = app
+        .request(reqwest::Method::POST, "/session.json")
+        .form(&[("name", "member"), ("password", "memberpw")])
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status(), 429);
+}
+
+#[tokio::test]
 async fn basic_auth_with_password_rejected() {
     let app = spawn().await;
     add_user(&app, "member", "memberpw", 20);
