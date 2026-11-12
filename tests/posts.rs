@@ -337,7 +337,12 @@ async fn delete_post_removes_from_listing() {
     assert_eq!(body["post"]["file"]["url"], Value::Null);
 
     let res = app
-        .authed(reqwest::Method::GET, &format!("/posts/{id}.json"), "admin", &key)
+        .authed(
+            reqwest::Method::GET,
+            &format!("/posts/{id}.json"),
+            "admin",
+            &key,
+        )
         .send()
         .await
         .unwrap();
@@ -349,15 +354,7 @@ async fn delete_post_removes_from_listing() {
 async fn deleted_media_not_served() {
     let app = spawn().await;
     let (_, key) = add_admin(&app);
-    let res = upload(
-        &app,
-        "admin",
-        &key,
-        png_bytes(16, 16, 70),
-        "x.png",
-        &[],
-    )
-    .await;
+    let res = upload(&app, "admin", &key, png_bytes(16, 16, 70), "x.png", &[]).await;
     assert_eq!(res.status(), 201);
     let body: Value = res.json().await.unwrap();
     let id = body["post_id"].as_i64().unwrap();
