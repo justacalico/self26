@@ -1,13 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:self26/app.dart';
 import 'package:self26/api.dart';
+import 'package:self26/models.dart';
 import 'package:self26/state.dart';
 import 'package:self26/version_checker.dart';
 import 'package:self26/window.dart';
@@ -243,7 +243,7 @@ Future<AppState> makeState({
   String baseUrl = 'http://server.test',
   User? user,
   VersionChecker? versionChecker,
-  String? appVersion = '1.0.0',
+  String appVersion = '1.0.0',
   void Function(Uri url)? onOpen,
   bool injectDefaults = true,
 }) async {
@@ -257,7 +257,7 @@ Future<AppState> makeState({
     api: Self26Api(baseUrl, client: c),
     prefs: p,
     versionChecker: versionChecker ?? VersionChecker(client: c),
-    appVersion: () async => appVersion ?? '1.0.0',
+    appVersion: () async => appVersion,
     openUrl: (url) async => onOpen?.call(url),
     user: user,
   );
@@ -270,7 +270,7 @@ Future<AppState> pumpApp(
   String baseUrl = 'http://server.test',
   User? user,
   VersionChecker? versionChecker,
-  String? appVersion = '1.0.0',
+  String appVersion = '1.0.0',
   void Function(Uri url)? onOpen,
   Size size = const Size(1280, 800),
   bool? desktop,

@@ -39,7 +39,7 @@ class AdminPage extends StatelessWidget {
                   (l.adminStatsPools, '${stats.pools}'),
                   (l.adminStatsFlags, '${stats.flags}'),
                   (l.adminStatsTickets, '${stats.tickets}'),
-                  (l.adminStatsDisk, _fmtBytes(stats.diskBytes)),
+                  (l.adminStatsDisk, formatBytes(stats.diskBytes)),
                 ])
                   SizedBox(
                     width: 160,
@@ -96,12 +96,6 @@ class AdminPage extends StatelessWidget {
     );
   }
 
-  static String _fmtBytes(int bytes) {
-    if (bytes > 1 << 30) return '${(bytes / (1 << 30)).toStringAsFixed(1)} GB';
-    if (bytes > 1 << 20) return '${(bytes / (1 << 20)).toStringAsFixed(1)} MB';
-    if (bytes > 1 << 10) return '${(bytes / (1 << 10)).toStringAsFixed(1)} KB';
-    return '$bytes B';
-  }
 }
 
 class _Header extends StatelessWidget {

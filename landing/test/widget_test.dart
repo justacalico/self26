@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -77,6 +78,14 @@ void main() {
   });
 
   testWidgets('landing page golden', (tester) async {
+    final flutterRoot = Platform.environment['FLUTTER_ROOT'] ??
+        File(Platform.resolvedExecutable).parent.parent.path;
+    final iconBytes = await tester.runAsync(() => File(
+            '$flutterRoot/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf')
+        .readAsBytes());
+    final icons = FontLoader('MaterialIcons')
+      ..addFont(Future.value(ByteData.view(iconBytes!.buffer)));
+    await icons.load();
     final loader = FontLoader('NotoSans')
       ..addFont(rootBundle.load('assets/fonts/NotoSans-Regular.ttf'))
       ..addFont(rootBundle.load('assets/fonts/NotoSans-Medium.ttf'))

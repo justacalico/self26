@@ -116,9 +116,7 @@ class PostTile extends StatelessWidget {
                   color: scheme.surfaceContainerHighest,
                   child: const Icon(Icons.broken_image_outlined),
                 ),
-                loadingBuilder: (ctx, child, progress) => progress == null
-                    ? child
-                    : Container(color: scheme.surfaceContainerHighest),
+                loadingBuilder: imagePlaceholder,
               ),
             Positioned(
               left: 0,
@@ -267,4 +265,18 @@ class _SearchBarState extends State<SearchBar> {
       ),
     );
   }
+}
+
+Widget imagePlaceholder(
+        BuildContext context, Widget child, ImageChunkEvent? progress) =>
+    progress == null
+        ? child
+        : Container(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest);
+
+String formatBytes(int bytes) {
+  if (bytes > 1 << 30) return '${(bytes / (1 << 30)).toStringAsFixed(1)} GB';
+  if (bytes > 1 << 20) return '${(bytes / (1 << 20)).toStringAsFixed(1)} MB';
+  if (bytes > 1 << 10) return '${(bytes / (1 << 10)).toStringAsFixed(1)} KB';
+  return '$bytes B';
 }

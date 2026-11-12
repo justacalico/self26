@@ -73,7 +73,9 @@ class AppState extends ChangeNotifier {
   /// Where the app talks when no server is configured. On web the app is
   /// served by the backend itself, so same-origin is right.
   static String defaultBaseUrl() {
-    if (kIsWeb) return Uri.base.origin;
+    if (kIsWeb) {
+      return Uri.base.origin; // coverage:ignore-line
+    }
     return 'http://localhost:8021';
   }
 
