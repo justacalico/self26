@@ -44,8 +44,8 @@ The web UI is served on the same port as the API.
 
 ## Screenshots
 
-![Posts grid](test/goldens/shell-posts.png)
-![Post detail](test/goldens/post-detail.png)
+![Posts grid](test/goldens/shell_posts.png)
+![Post detail](test/goldens/post_detail.png)
 ![Settings](test/goldens/settings.png)
 
 ## Server
