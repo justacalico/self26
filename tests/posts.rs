@@ -4,12 +4,7 @@ use common::*;
 use serde_json::Value;
 
 async fn list_ids(app: &TestApp, query: &[(&str, &str)]) -> Vec<i64> {
-    let res = app
-        .get("/posts.json")
-        .query(query)
-        .send()
-        .await
-        .unwrap();
+    let res = app.get("/posts.json").query(query).send().await.unwrap();
     assert_eq!(res.status(), 200);
     let body: Value = res.json().await.unwrap();
     body["posts"]
@@ -227,7 +222,10 @@ async fn v2_thumbnail_flat_shape() {
     let body: Value = res.json().await.unwrap();
     let p = &body.as_array().unwrap()[0];
     assert!(p["file_url"].as_str().unwrap().contains("/data/original/"));
-    assert!(p["preview_url"].as_str().unwrap().contains("/data/preview/"));
+    assert!(p["preview_url"]
+        .as_str()
+        .unwrap()
+        .contains("/data/preview/"));
     assert_eq!(p["file_ext"], "png");
     assert_eq!(p["md5"].as_str().unwrap().len(), 32);
     assert_eq!(p["score"], 0);
@@ -244,7 +242,12 @@ async fn update_post_edits_tags_rating_description() {
     let id = seed_post(&app, "admin", &key, 6, "old_tag").await;
 
     let res = app
-        .authed(reqwest::Method::PATCH, &format!("/posts/{id}.json"), "admin", &key)
+        .authed(
+            reqwest::Method::PATCH,
+            &format!("/posts/{id}.json"),
+            "admin",
+            &key,
+        )
         .form(&[
             ("post[tag_string]", "new_tag another"),
             ("post[rating]", "q"),
@@ -270,7 +273,12 @@ async fn non_owner_cannot_edit_or_delete() {
     let id = seed_post(&app, "member", &mkey, 7, "x").await;
 
     let res = app
-        .authed(reqwest::Method::PATCH, &format!("/posts/{id}.json"), "admin", &akey)
+        .authed(
+            reqwest::Method::PATCH,
+            &format!("/posts/{id}.json"),
+            "admin",
+            &akey,
+        )
         .form(&[("post[description]", "admin edit")])
         .send()
         .await
@@ -279,14 +287,24 @@ async fn non_owner_cannot_edit_or_delete() {
 
     let (_, key2) = add_user(&app, "other", "otherpw", 20);
     let res = app
-        .authed(reqwest::Method::PATCH, &format!("/posts/{id}.json"), "other", &key2)
+        .authed(
+            reqwest::Method::PATCH,
+            &format!("/posts/{id}.json"),
+            "other",
+            &key2,
+        )
         .form(&[("post[description]", "nope")])
         .send()
         .await
         .unwrap();
     assert_eq!(res.status(), 403);
     let res = app
-        .authed(reqwest::Method::DELETE, &format!("/posts/{id}.json"), "other", &key2)
+        .authed(
+            reqwest::Method::DELETE,
+            &format!("/posts/{id}.json"),
+            "other",
+            &key2,
+        )
         .send()
         .await
         .unwrap();
@@ -300,7 +318,12 @@ async fn delete_post_removes_from_listing() {
     let id = seed_post(&app, "admin", &key, 8, "gone").await;
 
     let res = app
-        .authed(reqwest::Method::DELETE, &format!("/posts/{id}.json"), "admin", &key)
+        .authed(
+            reqwest::Method::DELETE,
+            &format!("/posts/{id}.json"),
+            "admin",
+            &key,
+        )
         .send()
         .await
         .unwrap();
@@ -320,7 +343,12 @@ async fn search_filters() {
     let cat = seed_post(&app, "admin", &key, 10, "cat cute").await;
     let dog = seed_post(&app, "admin", &key, 11, "dog").await;
     let res = app
-        .authed(reqwest::Method::PATCH, &format!("/posts/{dog}.json"), "admin", &key)
+        .authed(
+            reqwest::Method::PATCH,
+            &format!("/posts/{dog}.json"),
+            "admin",
+            &key,
+        )
         .form(&[("post[rating]", "e")])
         .send()
         .await
@@ -334,34 +362,24 @@ async fn search_filters() {
     assert_eq!(list_ids(&app, &[("tags", "type:png")]).await.len(), 2);
     assert_eq!(list_ids(&app, &[("tags", "type:jpg")]).await.len(), 0);
     assert_eq!(
-        list_ids(&app, &[("tags", &format!("id:{cat}")])).await,
+        list_ids(&app, &[("tags", &format!("id:{cat}"))]).await,
         vec![cat]
     );
     assert_eq!(
-        list_ids(&app, &[("tags", &format!("id:{cat},{dog}")])).await.len(),
+        list_ids(&app, &[("tags", &format!("id:{cat},{dog}"))])
+            .await
+            .len(),
         2
     );
-    assert_eq!(
-        list_ids(&app, &[("tags", "uploader:admin")]).await.len(),
-        2
-    );
+    assert_eq!(list_ids(&app, &[("tags", "uploader:admin")]).await.len(), 2);
     assert_eq!(
         list_ids(&app, &[("tags", "uploader:nobody")]).await.len(),
         0
     );
     assert_eq!(list_ids(&app, &[("tags", "ca*")]).await, vec![cat]);
-    assert_eq!(
-        list_ids(&app, &[("tags", "~cat ~dog")]).await.len(),
-        2
-    );
-    assert_eq!(
-        list_ids(&app, &[("tags", "status:active")]).await.len(),
-        2
-    );
-    assert_eq!(
-        list_ids(&app, &[("tags", "parent:none")]).await.len(),
-        2
-    );
+    assert_eq!(list_ids(&app, &[("tags", "~cat ~dog")]).await.len(), 2);
+    assert_eq!(list_ids(&app, &[("tags", "status:active")]).await.len(), 2);
+    assert_eq!(list_ids(&app, &[("tags", "parent:none")]).await.len(), 2);
 }
 
 #[tokio::test]
@@ -412,7 +430,11 @@ async fn post_counts_and_random_and_popular() {
     let body: Value = res.json().await.unwrap();
     assert!(body["post"]["id"].is_number());
 
-    for path in ["/popular.json", "/explore/posts/popular.json", "/explore/posts/hot.json"] {
+    for path in [
+        "/popular.json",
+        "/explore/posts/popular.json",
+        "/explore/posts/hot.json",
+    ] {
         let res = app.get(path).send().await.unwrap();
         assert_eq!(res.status(), 200, "{path}");
         let body: Value = res.json().await.unwrap();
@@ -437,7 +459,10 @@ async fn large_image_gets_sample() {
     let body: Value = res.json().await.unwrap();
     let post = &body["post"];
     assert_eq!(post["sample"]["has"], true);
-    assert!(post["sample"]["url"].as_str().unwrap().contains("/data/sample/"));
+    assert!(post["sample"]["url"]
+        .as_str()
+        .unwrap()
+        .contains("/data/sample/"));
     assert!(post["sample"]["width"].as_i64().unwrap() <= 850);
     assert!(post["sample"]["height"].as_i64().unwrap() <= 850);
 }
@@ -447,13 +472,14 @@ async fn child_post_relationships() {
     let app = spawn().await;
     let (_, key) = add_admin(&app);
     let parent = seed_post(&app, "admin", &key, 50, "parent").await;
+    let parent_id = parent.to_string();
     let res = upload(
         &app,
         "admin",
         &key,
         png_bytes(16, 16, 51),
         "child.png",
-        &[("post[parent_id]", &parent.to_string())],
+        &[("post[parent_id]", parent_id.as_str())],
     )
     .await;
     assert_eq!(res.status(), 201);
@@ -470,7 +496,7 @@ async fn child_post_relationships() {
     assert_eq!(body["post"]["relationships"]["children"][0], child_id);
 
     assert_eq!(
-        list_ids(&app, &[("tags", &format!("parent:{parent}")])).await,
+        list_ids(&app, &[("tags", &format!("parent:{parent}"))]).await,
         vec![child_id]
     );
     assert_eq!(

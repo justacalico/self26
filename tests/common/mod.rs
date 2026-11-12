@@ -1,10 +1,12 @@
+#![allow(dead_code)]
+
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use serde_json::Value;
 use self26::media::MediaProcessor;
 use self26::models::StoredUser;
 use self26::{app, auth, db, AppState};
+use serde_json::Value;
 
 pub struct TestApp {
     pub addr: SocketAddr,
@@ -97,11 +99,7 @@ pub fn png_bytes(w: u32, h: u32, seed: u8) -> Vec<u8> {
 
 pub fn jpeg_bytes(w: u32, h: u32, seed: u8) -> Vec<u8> {
     let img = image::RgbImage::from_fn(w, h, |x, y| {
-        image::Rgb([
-            seed,
-            (x % 256) as u8,
-            (y % 256) as u8 ^ seed,
-        ])
+        image::Rgb([seed, (x % 256) as u8, (y % 256) as u8 ^ seed])
     });
     let mut buf = std::io::Cursor::new(Vec::new());
     image::DynamicImage::ImageRgb8(img)

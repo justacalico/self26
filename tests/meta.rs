@@ -29,7 +29,12 @@ async fn metrics_exposes_counters() {
     let res = app.get("/metrics").send().await.unwrap();
     assert_eq!(res.status(), 200);
     let text = res.text().await.unwrap();
-    for key in ["self26_posts", "self26_users", "self26_tags", "self26_comments"] {
+    for key in [
+        "self26_posts",
+        "self26_users",
+        "self26_tags",
+        "self26_comments",
+    ] {
         assert!(text.contains(key), "missing {key} in {text}");
     }
 }
@@ -51,11 +56,7 @@ async fn root_serves_spa_and_unknown_api_path_404s() {
     let res = app.get("/").send().await.unwrap();
     assert_eq!(res.status(), 200);
     assert_eq!(
-        res.headers()
-            .get("content-type")
-            .unwrap()
-            .to_str()
-            .unwrap(),
+        res.headers().get("content-type").unwrap().to_str().unwrap(),
         "text/html"
     );
 

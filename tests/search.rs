@@ -1,8 +1,6 @@
-mod common;
-
+use self26::api::post_json::{post_json, PostFormat};
 use self26::db;
 use self26::models::{Rating, StoredPost};
-use self26::api::post_json::{post_json, PostFormat};
 use self26::search::{self, Page};
 
 fn page() -> Page {
@@ -37,11 +35,12 @@ fn parse_tag_normalizes_case() {
     guard
         .execute("INSERT INTO tags (name) VALUES ('cat')", [])
         .unwrap();
-    let sql = format!(
-        "SELECT t.name FROM tags t WHERE t.name = ?1",
-    );
     let name: String = guard
-        .query_row(&sql, [&q.params[0] as &dyn rusqlite::ToSql], |r| r.get(0))
+        .query_row(
+            "SELECT name FROM tags WHERE name = ?1",
+            [&*q.params[0] as &dyn rusqlite::ToSql],
+            |r| r.get(0),
+        )
         .unwrap();
     assert_eq!(name, "cat");
 }
@@ -99,7 +98,10 @@ fn parse_order_metatags() {
         .order_sql
         .contains("ASC"));
     assert_eq!(search::parse("order:random", page()).order_sql, "RANDOM()");
-    assert_eq!(search::parse("order:id_asc", page()).order_sql, "posts.id ASC");
+    assert_eq!(
+        search::parse("order:id_asc", page()).order_sql,
+        "posts.id ASC"
+    );
 }
 
 #[test]
@@ -152,14 +154,14 @@ fn generated_sql_is_valid_against_schema() {
             q.order_sql,
             q.limit
         );
-        let mut stmt = guard.prepare(&sql).unwrap_or_else(|e| {
-            panic!("invalid sql for '{tags}': {e}\n{sql}")
-        });
-        let refs: Vec<&dyn rusqlite::ToSql> =
-            q.params.iter().map(|p| p.as_ref()).collect();
-        stmt.query(refs.as_slice()).unwrap_or_else(|e| {
-            panic!("query failed for '{tags}': {e}")
-        });
+        let mut stmt = guard
+            .prepare(&sql)
+            .unwrap_or_else(|e| panic!("invalid sql for '{tags}': {e}\n{sql}"));
+        let refs: Vec<&dyn rusqlite::ToSql> = q.params.iter().map(|p| p.as_ref()).collect();
+        let mut rows = stmt
+            .query(refs.as_slice())
+            .unwrap_or_else(|e| panic!("query failed for '{tags}': {e}"));
+        while rows.next().unwrap().is_some() {}
     }
 }
 
@@ -188,10 +190,7 @@ fn rating_parse_variants() {
 
 #[test]
 fn post_format_from_params() {
-    assert_eq!(
-        PostFormat::from_params(None, None),
-        PostFormat::Legacy
-    );
+    assert_eq!(PostFormat::from_params(None, None), PostFormat::Legacy);
     assert_eq!(
         PostFormat::from_params(Some("true"), None),
         PostFormat::V2Basic
@@ -247,10 +246,21 @@ fn stored_post() -> StoredPost {
 fn post_json_legacy_shape() {
     let db = db::open(None).unwrap();
     let conn = db.lock().unwrap();
+    conn.execute(
+        "INSERT INTO posts (created_at, updated_at, uploader_id, md5, ext,
+            size, width, height)
+         VALUES ('2020-01-01T00:00:00Z', '2020-01-01T00:00:00Z', 1,
+            '0123456789abcdef0123456789abcdef', 'png', 1, 1, 1)",
+        [],
+    )
+    .unwrap();
     db::set_post_tags(&conn, 1, &["cat".into(), "dog".into()]).unwrap();
     let v = post_json(&conn, &stored_post(), "http://h", None, PostFormat::Legacy);
     assert_eq!(v["id"], 1);
-    assert!(v["file"]["url"].as_str().unwrap().starts_with("http://h/data/original/01/"));
+    assert!(v["file"]["url"]
+        .as_str()
+        .unwrap()
+        .starts_with("http://h/data/original/01/"));
     assert!(v["tags"]["general"].as_array().unwrap().len() == 2);
     assert_eq!(v["tag_string"], "cat dog");
     assert!(v["flags"]["deleted"].is_boolean());
