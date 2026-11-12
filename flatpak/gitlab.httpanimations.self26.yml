@@ -23,5 +23,5 @@ modules:
       - type: dir
         path: ../flatpak-stage
       - type: dir
-        path: ./
+        path: ../packaging/linux
         dest: packaging
