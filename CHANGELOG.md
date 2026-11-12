@@ -2,6 +2,13 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.1.4 - 2026-11-12
+#### Bug Fixes
+- 收紧隐藏内容、锁定标签与媒体访问 - (9991fa8) - calico
+- 加固后端鉴权、锁定与媒体服务 - (c6e5109) - calico
+
+- - -
+
 ## v0.1.3 - 2026-11-12
 #### Bug Fixes
 - 跳过无版本可升的自动发布 - (810bf5e) - calico
