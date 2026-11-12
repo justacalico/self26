@@ -145,6 +145,7 @@ jobs:
           flutter config --no-analytics >/dev/null
           flutter pub get
           flutter analyze --no-pub
+          (cd landing && flutter pub get && flutter analyze --no-pub)
           xvfb-run -a flutter test --no-pub --coverage
           python3 - <<'PY'
           lh = lf = 0
