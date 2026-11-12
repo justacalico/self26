@@ -411,7 +411,7 @@ pub async fn create_post(
 
     let post_id = {
         let conn = state.db.lock().map_err(ApiError::internal)?;
-        conn.execute(
+        if let Err(e) = conn.execute(
             "INSERT INTO posts (created_at, updated_at, change_seq, uploader_id,
                 approver_id, md5, ext, size, width, height, has_sample,
                 preview_width, preview_height, sample_width, sample_height,
@@ -437,8 +437,10 @@ pub async fn create_post(
                 description,
                 form.get("parent_id").and_then(|s| s.parse::<i64>().ok()),
             ],
-        )
-        .map_err(ApiError::internal)?;
+        ) {
+            state.media.remove(&md5);
+            return Err(ApiError::internal(e));
+        }
         let id: i64 = conn
             .query_row("SELECT last_insert_rowid()", [], |r| r.get(0))
             .map_err(ApiError::internal)?;

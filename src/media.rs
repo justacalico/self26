@@ -40,6 +40,26 @@ impl MediaProcessor {
         self.data_dir.join(kind).join(&md5[..2])
     }
 
+    pub fn remove(&self, md5: &str) {
+        for kind in ["original", "preview", "sample"] {
+            let dir = self.dir(kind, md5);
+            let Ok(entries) = std::fs::read_dir(&dir) else {
+                continue;
+            };
+            let mut others = false;
+            for e in entries.flatten() {
+                if e.file_name().to_string_lossy().starts_with(md5) {
+                    let _ = std::fs::remove_file(e.path());
+                } else {
+                    others = true;
+                }
+            }
+            if !others {
+                let _ = std::fs::remove_dir(&dir);
+            }
+        }
+    }
+
     pub fn path(&self, kind: &str, md5: &str, ext: &str) -> PathBuf {
         self.dir(kind, md5).join(format!("{md5}.{ext}"))
     }

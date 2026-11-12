@@ -129,7 +129,9 @@ pub async fn update_user(
     }
     let form = read_post_form(request).await?;
     let conn = state.db.lock().map_err(ApiError::internal)?;
-    let user = auth::get_user(&conn, id).ok_or_else(ApiError::not_found)?;
+    if auth::get_user(&conn, id).is_none() {
+        return Err(ApiError::not_found());
+    }
     if let Some(pw) = form.get("password").or_else(|| form.get("user[password]")) {
         if !pw.is_empty() {
             conn.execute(
@@ -151,7 +153,8 @@ pub async fn update_user(
             .map_err(ApiError::internal)?;
         }
     }
-    Ok(Json(user_json(&conn, &user, true)))
+    let user = auth::get_user(&conn, id).ok_or_else(ApiError::not_found)?;
+    Ok(Json(user_json(&conn, &user, actor.id == id)))
 }
 
 /// Account creation — open registration for the first run, admin-only after
