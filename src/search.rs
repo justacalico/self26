@@ -54,12 +54,16 @@ fn tag_subquery(tag: &str, params: &mut Vec<Box<dyn ToSql>>, negate: bool) -> St
     let tag = tag.to_lowercase().replace(' ', "_");
     let clause = if tag.contains('*') {
         let p = push_param(params, tag.replace('*', "%"));
-        format!("EXISTS (SELECT 1 FROM post_tags pt JOIN tags t ON t.id = pt.tag_id
-                 WHERE pt.post_id = posts.id AND t.name LIKE {p} ESCAPE '\\')")
+        format!(
+            "EXISTS (SELECT 1 FROM post_tags pt JOIN tags t ON t.id = pt.tag_id
+                 WHERE pt.post_id = posts.id AND t.name LIKE {p} ESCAPE '\\')"
+        )
     } else {
         let p = push_param(params, tag.to_string());
-        format!("EXISTS (SELECT 1 FROM post_tags pt JOIN tags t ON t.id = pt.tag_id
-                 WHERE pt.post_id = posts.id AND t.name = {p})")
+        format!(
+            "EXISTS (SELECT 1 FROM post_tags pt JOIN tags t ON t.id = pt.tag_id
+                 WHERE pt.post_id = posts.id AND t.name = {p})"
+        )
     };
     if negate {
         format!("NOT {clause}")
@@ -92,7 +96,14 @@ pub fn parse(tags: &str, page: Page) -> SearchQuery {
         }
 
         let cond = if let Some((key, value)) = term.split_once(':') {
-            meta_condition(key, value, &mut q.params, &mut q.order_sql, &mut random_order, neg)
+            meta_condition(
+                key,
+                value,
+                &mut q.params,
+                &mut q.order_sql,
+                &mut random_order,
+                neg,
+            )
         } else if opt {
             optionals.push(tag_subquery(term, &mut q.params, false));
             continue;
@@ -212,15 +223,19 @@ fn meta_condition(
         }
         "pool" => {
             let p = push_param(params, value.to_string());
-            format!("posts.id IN (SELECT post_id FROM pool_posts pp
+            format!(
+                "posts.id IN (SELECT post_id FROM pool_posts pp
                      JOIN pools pl ON pl.id = pp.pool_id
-                     WHERE pl.name = {p} OR CAST(pl.id AS TEXT) = {p})")
+                     WHERE pl.name = {p} OR CAST(pl.id AS TEXT) = {p})"
+            )
         }
         "fav" | "favoritedby" | "favorited_by" => {
             let p = push_param(params, value.to_string());
-            format!("posts.id IN (SELECT post_id FROM favorites f
+            format!(
+                "posts.id IN (SELECT post_id FROM favorites f
                      JOIN users u ON u.id = f.user_id
-                     WHERE u.name = {p} COLLATE NOCASE OR CAST(u.id AS TEXT) = {p})")
+                     WHERE u.name = {p} COLLATE NOCASE OR CAST(u.id AS TEXT) = {p})"
+            )
         }
         "description" | "desc" => {
             let p = push_param(params, format!("%{}%", value.replace('*', "%")));
@@ -232,9 +247,11 @@ fn meta_condition(
         }
         "note" | "notes" => {
             let p = push_param(params, format!("%{}%", value.replace('*', "%")));
-            format!("posts.id IN (SELECT post_id FROM notes n
+            format!(
+                "posts.id IN (SELECT post_id FROM notes n
                      WHERE n.post_id = posts.id AND n.is_active = 1
-                     AND n.body LIKE {p} ESCAPE '\\')")
+                     AND n.body LIKE {p} ESCAPE '\\')"
+            )
         }
         "order" => {
             *order_sql = match value {
@@ -275,9 +292,7 @@ fn meta_condition(
             } else {
                 let secs = parse_age(v).unwrap_or(0);
                 let p = push_param(params, secs);
-                format!(
-                    "(julianday('now') - julianday(posts.created_at)) * 86400.0 {op} {p}"
-                )
+                format!("(julianday('now') - julianday(posts.created_at)) * 86400.0 {op} {p}")
             }
         }
         "tagcount" => {

@@ -51,15 +51,19 @@ fn row_to_note(r: &rusqlite::Row) -> rusqlite::Result<StoredNote> {
 }
 
 fn get_note(conn: &rusqlite::Connection, id: i64) -> Option<StoredNote> {
-    conn.query_row("SELECT * FROM notes WHERE id = ?1", params![id], row_to_note)
-        .ok()
+    conn.query_row(
+        "SELECT * FROM notes WHERE id = ?1",
+        params![id],
+        row_to_note,
+    )
+    .ok()
 }
 
 pub async fn list_notes(
     State(state): State<AppState>,
     Query(params): Query<HashMap<String, String>>,
 ) -> ApiResult<Json<Value>> {
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let mut sql = "SELECT * FROM notes WHERE is_active = 1".to_string();
     let mut args: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
     if let Some(pid) = params
@@ -90,8 +94,10 @@ pub async fn show_note(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> ApiResult<Json<Value>> {
-    let id: i64 = strip_json_suffix(&id).parse().map_err(|_| ApiError::not_found())?;
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let id: i64 = strip_json_suffix(&id)
+        .parse()
+        .map_err(|_| ApiError::not_found())?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let n = get_note(&conn, id).ok_or_else(ApiError::not_found)?;
     Ok(Json(note_json(&conn, &n)))
 }
@@ -112,7 +118,7 @@ pub async fn create_note(
     let post_id: i64 = note_fields(&form, "post_id")
         .and_then(|s| s.parse().ok())
         .ok_or_else(|| ApiError::bad_request("post_id required"))?;
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let post = db::get_post(&conn, post_id).ok_or_else(ApiError::not_found)?;
     if post.note_locked && !user.is_admin() {
         return Err(ApiError::forbidden());
@@ -152,15 +158,22 @@ pub async fn update_note(
     Path(id): Path<String>,
     request: axum::extract::Request,
 ) -> ApiResult<Json<Value>> {
-    let id: i64 = strip_json_suffix(&id).parse().map_err(|_| ApiError::not_found())?;
+    let id: i64 = strip_json_suffix(&id)
+        .parse()
+        .map_err(|_| ApiError::not_found())?;
     let user = auth.user().cloned().ok_or_else(ApiError::unauthorized)?;
     let form = read_post_form(request).await?;
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let note = get_note(&conn, id).ok_or_else(ApiError::not_found)?;
     if note.creator_id != user.id && !user.is_admin() {
         return Err(ApiError::forbidden());
     }
-    for (key, col) in [("x", "x"), ("y", "y"), ("width", "width"), ("height", "height")] {
+    for (key, col) in [
+        ("x", "x"),
+        ("y", "y"),
+        ("width", "width"),
+        ("height", "height"),
+    ] {
         if let Some(v) = note_fields(&form, key).and_then(|s| s.parse::<i64>().ok()) {
             conn.execute(
                 &format!("UPDATE notes SET {col} = ?1 WHERE id = ?2"),
@@ -197,9 +210,11 @@ pub async fn delete_note(
     auth: ApiAuth,
     Path(id): Path<String>,
 ) -> ApiResult<Json<Value>> {
-    let id: i64 = strip_json_suffix(&id).parse().map_err(|_| ApiError::not_found())?;
+    let id: i64 = strip_json_suffix(&id)
+        .parse()
+        .map_err(|_| ApiError::not_found())?;
     let user = auth.user().cloned().ok_or_else(ApiError::unauthorized)?;
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let n = get_note(&conn, id).ok_or_else(ApiError::not_found)?;
     if n.creator_id != user.id && !user.is_admin() {
         return Err(ApiError::forbidden());

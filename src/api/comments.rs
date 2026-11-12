@@ -76,7 +76,7 @@ pub async fn list_comments(
     auth: ApiAuth,
     Query(params): Query<HashMap<String, String>>,
 ) -> ApiResult<Json<Value>> {
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let mut conds = vec!["is_hidden = 0".to_string()];
     let mut args: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
     if let Some(pid) = params
@@ -105,7 +105,10 @@ pub async fn list_comments(
         format!(
             "SELECT * FROM comments c WHERE {} GROUP BY c.post_id
              ORDER BY MAX(c.created_at) DESC LIMIT {limit}",
-            conds.join(" AND ").replace("post_id", "c.post_id").replace("creator_id", "c.creator_id")
+            conds
+                .join(" AND ")
+                .replace("post_id", "c.post_id")
+                .replace("creator_id", "c.creator_id")
         )
     } else {
         format!(
@@ -136,7 +139,10 @@ fn comment_form(body: &Bytes) -> HashMap<String, String> {
             let comment = v.get("comment").cloned().unwrap_or(v);
             if let Some(map) = comment.as_object() {
                 for (k, val) in map {
-                    out.insert(k.clone(), val.as_str().unwrap_or(&val.to_string()).to_string());
+                    out.insert(
+                        k.clone(),
+                        val.as_str().unwrap_or(&val.to_string()).to_string(),
+                    );
                 }
             }
         }
@@ -169,7 +175,7 @@ pub async fn create_comment(
     if text.is_empty() {
         return Err(ApiError::bad_request("body required"));
     }
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     if db::get_post(&conn, post_id).is_none() {
         return Err(ApiError::not_found());
     }
@@ -195,8 +201,10 @@ pub async fn show_comment(
     auth: ApiAuth,
     Path(id): Path<String>,
 ) -> ApiResult<Json<Value>> {
-    let id: i64 = strip_json_suffix(&id).parse().map_err(|_| ApiError::not_found())?;
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let id: i64 = strip_json_suffix(&id)
+        .parse()
+        .map_err(|_| ApiError::not_found())?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let c = get_comment(&conn, id).ok_or_else(ApiError::not_found)?;
     Ok(Json(comment_json(&conn, &c, auth.id())))
 }
@@ -207,10 +215,12 @@ pub async fn update_comment(
     Path(id): Path<String>,
     body: Bytes,
 ) -> ApiResult<Json<Value>> {
-    let id: i64 = strip_json_suffix(&id).parse().map_err(|_| ApiError::not_found())?;
+    let id: i64 = strip_json_suffix(&id)
+        .parse()
+        .map_err(|_| ApiError::not_found())?;
     let user = auth.user().cloned().ok_or_else(ApiError::unauthorized)?;
     let form = comment_form(&body);
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let c = get_comment(&conn, id).ok_or_else(ApiError::not_found)?;
     if c.creator_id != user.id && !user.is_admin() {
         return Err(ApiError::forbidden());
@@ -247,9 +257,11 @@ pub async fn delete_comment(
     auth: ApiAuth,
     Path(id): Path<String>,
 ) -> ApiResult<Json<Value>> {
-    let id: i64 = strip_json_suffix(&id).parse().map_err(|_| ApiError::not_found())?;
+    let id: i64 = strip_json_suffix(&id)
+        .parse()
+        .map_err(|_| ApiError::not_found())?;
     let user = auth.user().cloned().ok_or_else(ApiError::unauthorized)?;
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let c = get_comment(&conn, id).ok_or_else(ApiError::not_found)?;
     if c.creator_id != user.id && !user.is_admin() {
         return Err(ApiError::forbidden());
@@ -265,7 +277,9 @@ pub async fn vote_comment(
     Path(id): Path<String>,
     body: Bytes,
 ) -> ApiResult<Json<Value>> {
-    let id: i64 = strip_json_suffix(&id).parse().map_err(|_| ApiError::not_found())?;
+    let id: i64 = strip_json_suffix(&id)
+        .parse()
+        .map_err(|_| ApiError::not_found())?;
     let user = auth.user().cloned().ok_or_else(ApiError::unauthorized)?;
     let raw = String::from_utf8_lossy(&body);
     let score_str = raw
@@ -282,7 +296,7 @@ pub async fn vote_comment(
         "down" | "-1" => -1,
         _ => return Err(ApiError::bad_request("score must be up or down")),
     };
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     if get_comment(&conn, id).is_none() {
         return Err(ApiError::not_found());
     }
@@ -306,9 +320,13 @@ pub async fn vote_comment(
     )
     .map_err(ApiError::internal)?;
     let total: i64 = conn
-        .query_row("SELECT score FROM comments WHERE id = ?1", params![id], |r| {
-            r.get(0)
-        })
+        .query_row(
+            "SELECT score FROM comments WHERE id = ?1",
+            params![id],
+            |r| r.get(0),
+        )
         .unwrap_or(0);
-    Ok(Json(json!({ "success": true, "score": total, "our_score": score })))
+    Ok(Json(
+        json!({ "success": true, "score": total, "our_score": score }),
+    ))
 }

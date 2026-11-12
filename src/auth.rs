@@ -96,9 +96,11 @@ pub fn user_by_name(conn: &Connection, name: &str) -> Option<StoredUser> {
 
 pub fn user_by_api_key(conn: &Connection, key: &str) -> Option<StoredUser> {
     let id: Option<i64> = conn
-        .query_row("SELECT id FROM users WHERE api_key = ?1", params![key], |r| {
-            r.get(0)
-        })
+        .query_row(
+            "SELECT id FROM users WHERE api_key = ?1",
+            params![key],
+            |r| r.get(0),
+        )
         .ok();
     let id = id?;
     let user = get_user(conn, id)?;

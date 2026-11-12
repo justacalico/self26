@@ -41,11 +41,14 @@ pub async fn list_tags(
     State(state): State<AppState>,
     Query(params): Query<HashMap<String, String>>,
 ) -> ApiResult<Json<Value>> {
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let mut conds = Vec::new();
     let mut args: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
 
-    if let Some(m) = params.get("search[name_matches]").or_else(|| params.get("name_matches")) {
+    if let Some(m) = params
+        .get("search[name_matches]")
+        .or_else(|| params.get("name_matches"))
+    {
         args.push(Box::new(m.replace('*', "%")));
         conds.push(format!("name LIKE ?{} ESCAPE '\\'", args.len()));
     }
@@ -82,7 +85,10 @@ pub async fn list_tags(
     if !conds.is_empty() {
         sql.push_str(&format!(" WHERE {}", conds.join(" AND ")));
     }
-    sql.push_str(&format!(" ORDER BY {order} LIMIT {limit} OFFSET {}", (page - 1) * limit));
+    sql.push_str(&format!(
+        " ORDER BY {order} LIMIT {limit} OFFSET {}",
+        (page - 1) * limit
+    ));
 
     let mut stmt = conn.prepare(&sql).map_err(ApiError::internal)?;
     let refs: Vec<&dyn rusqlite::ToSql> = args.iter().map(|a| a.as_ref()).collect();
@@ -103,7 +109,7 @@ pub async fn autocomplete(
         .or_else(|| params.get("query"))
         .cloned()
         .unwrap_or_default();
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let mut stmt = conn
         .prepare(
             "SELECT id, name, category, post_count FROM tags
@@ -134,7 +140,7 @@ pub async fn autocomplete(
 }
 
 pub async fn popular_tags(State(state): State<AppState>) -> ApiResult<Json<Value>> {
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let mut stmt = conn
         .prepare(
             "SELECT id, name, category, post_count FROM tags
@@ -156,7 +162,7 @@ pub async fn show_tag(
     Path(id): Path<String>,
 ) -> ApiResult<Json<Value>> {
     let raw = strip_json_suffix(&id);
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let tag = if let Ok(id) = raw.parse::<i64>() {
         conn.query_row(
             "SELECT id, name, category, post_count FROM tags WHERE id = ?1",
@@ -188,7 +194,7 @@ pub async fn update_tag(
     }
     let raw = strip_json_suffix(&id).to_string();
     let form = read_post_form(request).await?;
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let tag_id: i64 = raw.parse().map_err(|_| ApiError::not_found())?;
     if let Some(cat) = form.get("category").and_then(|s| s.parse::<i64>().ok()) {
         conn.execute(
@@ -233,12 +239,12 @@ fn alias_rows(conn: &rusqlite::Connection, table: &str) -> Vec<Value> {
 }
 
 pub async fn list_aliases(State(state): State<AppState>) -> ApiResult<Json<Value>> {
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     Ok(Json(json!(alias_rows(&conn, "tag_aliases"))))
 }
 
 pub async fn list_implications(State(state): State<AppState>) -> ApiResult<Json<Value>> {
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     Ok(Json(json!(alias_rows(&conn, "tag_implications"))))
 }
 

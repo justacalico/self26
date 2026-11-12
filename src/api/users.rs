@@ -67,11 +67,14 @@ pub async fn list_users(
     auth: ApiAuth,
     Query(params): Query<HashMap<String, String>>,
 ) -> ApiResult<Json<Value>> {
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let is_admin = auth.user().map(|u| u.is_admin()).unwrap_or(false);
     let mut sql = "SELECT id FROM users".to_string();
     let mut args: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
-    if let Some(name) = params.get("search[name_matches]").or_else(|| params.get("name")) {
+    if let Some(name) = params
+        .get("search[name_matches]")
+        .or_else(|| params.get("name"))
+    {
         args.push(Box::new(name.replace('*', "%")));
         sql.push_str(&format!(" WHERE name LIKE ?{} ESCAPE '\\'", args.len()));
     }
@@ -100,7 +103,7 @@ pub async fn show_user(
     Path(id): Path<String>,
 ) -> ApiResult<Json<Value>> {
     let raw = strip_json_suffix(&id);
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let user = if raw == "current" || raw == "me" {
         auth.user().cloned().ok_or_else(ApiError::unauthorized)?
     } else if let Ok(id) = raw.parse::<i64>() {
@@ -108,7 +111,10 @@ pub async fn show_user(
     } else {
         auth::user_by_name(&conn, raw).ok_or_else(ApiError::not_found)?
     };
-    let full = auth.user().map(|a| a.is_admin() || a.id == user.id).unwrap_or(false);
+    let full = auth
+        .user()
+        .map(|a| a.is_admin() || a.id == user.id)
+        .unwrap_or(false);
     Ok(Json(user_json(&conn, &user, full)))
 }
 
@@ -118,13 +124,15 @@ pub async fn update_user(
     Path(id): Path<String>,
     request: axum::extract::Request,
 ) -> ApiResult<Json<Value>> {
-    let id: i64 = strip_json_suffix(&id).parse().map_err(|_| ApiError::not_found())?;
+    let id: i64 = strip_json_suffix(&id)
+        .parse()
+        .map_err(|_| ApiError::not_found())?;
     let actor = auth.user().cloned().ok_or_else(ApiError::unauthorized)?;
     if actor.id != id && !actor.is_admin() {
         return Err(ApiError::forbidden());
     }
     let form = read_post_form(request).await?;
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let user = auth::get_user(&conn, id).ok_or_else(ApiError::not_found)?;
     if let Some(pw) = form.get("password").or_else(|| form.get("user[password]")) {
         if !pw.is_empty() {
@@ -171,7 +179,7 @@ pub async fn create_user(
             "name required and password must be at least 4 characters",
         ));
     }
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let user_count: i64 = conn
         .query_row("SELECT COUNT(*) FROM users", [], |r| r.get(0))
         .unwrap_or(0);
@@ -202,7 +210,11 @@ pub async fn login(
     let (mut name, mut password) = (String::new(), String::new());
     if raw.trim_start().starts_with('{') {
         if let Ok(v) = serde_json::from_str::<Value>(&raw) {
-            name = v["name"].as_str().or_else(|| v["login"].as_str()).unwrap_or_default().to_string();
+            name = v["name"]
+                .as_str()
+                .or_else(|| v["login"].as_str())
+                .unwrap_or_default()
+                .to_string();
             password = v["password"].as_str().unwrap_or_default().to_string();
         }
     } else {
@@ -217,7 +229,7 @@ pub async fn login(
             }
         }
     }
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let user = auth::user_by_name(&conn, &name)
         .filter(|u| auth::verify_password(&password, &u.password_hash))
         .ok_or_else(|| ApiError::new(StatusCode::UNAUTHORIZED, "invalid login or password"))?;
@@ -238,16 +250,17 @@ pub async fn logout(State(state): State<AppState>, headers: HeaderMap) -> ApiRes
     if let Some(raw) = headers.get(header::COOKIE).and_then(|v| v.to_str().ok()) {
         for c in raw.split(';').map(str::trim) {
             if let Some(token) = c.strip_prefix("self26_session=") {
-                let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
-                let _ = conn.execute(
-                    "DELETE FROM sessions WHERE token = ?1",
-                    params![token],
-                );
+                let conn = state.db.lock().map_err(ApiError::internal)?;
+                let _ = conn.execute("DELETE FROM sessions WHERE token = ?1", params![token]);
             }
         }
     }
     let cookie = "self26_session=; Path=/; HttpOnly; Max-Age=0".to_string();
-    Ok(([(header::SET_COOKIE, cookie)], Json(json!({ "success": true }))).into_response())
+    Ok((
+        [(header::SET_COOKIE, cookie)],
+        Json(json!({ "success": true })),
+    )
+        .into_response())
 }
 
 /// Admin: regenerate a user's API key.
@@ -256,12 +269,14 @@ pub async fn reset_api_key(
     auth: ApiAuth,
     Path(id): Path<String>,
 ) -> ApiResult<Json<Value>> {
-    let id: i64 = strip_json_suffix(&id).parse().map_err(|_| ApiError::not_found())?;
+    let id: i64 = strip_json_suffix(&id)
+        .parse()
+        .map_err(|_| ApiError::not_found())?;
     let actor = auth.user().cloned().ok_or_else(ApiError::unauthorized)?;
     if actor.id != id && !actor.is_admin() {
         return Err(ApiError::forbidden());
     }
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let key = auth::new_api_key();
     conn.execute(
         "UPDATE users SET api_key = ?1 WHERE id = ?2",
@@ -270,5 +285,3 @@ pub async fn reset_api_key(
     .map_err(ApiError::internal)?;
     Ok(Json(json!({ "success": true, "api_key": key })))
 }
-
-

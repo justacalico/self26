@@ -82,7 +82,10 @@ pub fn ok_json(v: Value) -> ApiResult<Json<Value>> {
 /// and the SPA fallback never claims these paths.
 pub fn api_router() -> Router<AppState> {
     Router::new()
-        .route("/posts.json", get(posts::list_posts).post(posts::create_post))
+        .route(
+            "/posts.json",
+            get(posts::list_posts).post(posts::create_post),
+        )
         .route("/posts", get(posts::list_posts).post(posts::create_post))
         .route("/posts/random.json", get(posts::random_post))
         .route(
@@ -116,7 +119,10 @@ pub fn api_router() -> Router<AppState> {
                 .delete(comments::delete_comment),
         )
         .route("/comments/:id/votes.json", post(comments::vote_comment))
-        .route("/notes.json", get(notes::list_notes).post(notes::create_note))
+        .route(
+            "/notes.json",
+            get(notes::list_notes).post(notes::create_note),
+        )
         .route(
             "/notes/:id",
             get(notes::show_note)
@@ -129,11 +135,16 @@ pub fn api_router() -> Router<AppState> {
         .route("/tags/popular.json", get(tags::popular_tags))
         .route(
             "/tags/:id",
-            get(tags::show_tag).patch(tags::update_tag).put(tags::update_tag),
+            get(tags::show_tag)
+                .patch(tags::update_tag)
+                .put(tags::update_tag),
         )
         .route("/tag_aliases.json", get(tags::list_aliases))
         .route("/tag_implications.json", get(tags::list_implications))
-        .route("/pools.json", get(pools::list_pools).post(pools::create_pool))
+        .route(
+            "/pools.json",
+            get(pools::list_pools).post(pools::create_pool),
+        )
         .route(
             "/pools/:id",
             get(pools::show_pool)
@@ -143,7 +154,10 @@ pub fn api_router() -> Router<AppState> {
         )
         .route("/pools/:id/posts.json", get(pools::pool_posts))
         .route("/posts/:id/pools.json", get(pools::post_pools))
-        .route("/users.json", get(users::list_users).post(users::create_user))
+        .route(
+            "/users.json",
+            get(users::list_users).post(users::create_user),
+        )
         .route(
             "/users/:id",
             get(users::show_user).patch(users::update_user),
@@ -159,8 +173,14 @@ pub fn api_router() -> Router<AppState> {
             "/post_flags/:id",
             get(misc::show_flag).delete(misc::delete_flag),
         )
-        .route("/tickets.json", get(misc::list_tickets).post(misc::create_ticket))
-        .route("/tickets", get(misc::list_tickets).post(misc::create_ticket))
+        .route(
+            "/tickets.json",
+            get(misc::list_tickets).post(misc::create_ticket),
+        )
+        .route(
+            "/tickets",
+            get(misc::list_tickets).post(misc::create_ticket),
+        )
         .route("/post_counts.json", get(posts::post_counts))
         .route("/iqdb_queries.json", post(posts::iqdb_stub))
 }

@@ -70,7 +70,7 @@ pub async fn list_pools(
     State(state): State<AppState>,
     Query(params): Query<HashMap<String, String>>,
 ) -> ApiResult<Json<Value>> {
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let mut sql = "SELECT id FROM pools WHERE is_deleted = 0".to_string();
     let mut args: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
     if let Some(name) = params
@@ -100,8 +100,10 @@ pub async fn show_pool(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> ApiResult<Json<Value>> {
-    let id: i64 = strip_json_suffix(&id).parse().map_err(|_| ApiError::not_found())?;
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let id: i64 = strip_json_suffix(&id)
+        .parse()
+        .map_err(|_| ApiError::not_found())?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let pool = get_pool(&conn, id).ok_or_else(ApiError::not_found)?;
     Ok(Json(pool_json(&conn, &pool)))
 }
@@ -113,13 +115,15 @@ pub async fn pool_posts(
     Path(id): Path<String>,
     Query(params): Query<HashMap<String, String>>,
 ) -> ApiResult<Json<Value>> {
-    let id: i64 = strip_json_suffix(&id).parse().map_err(|_| ApiError::not_found())?;
+    let id: i64 = strip_json_suffix(&id)
+        .parse()
+        .map_err(|_| ApiError::not_found())?;
     let format = PostFormat::from_params(
         params.get("v2").map(String::as_str),
         params.get("mode").map(String::as_str),
     );
     let base = crate::api::posts::base_url_pub(&headers, &state.base_url);
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let pool = get_pool(&conn, id).ok_or_else(ApiError::not_found)?;
     let items: Vec<Value> = pool
         .post_ids
@@ -139,8 +143,10 @@ pub async fn post_pools(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> ApiResult<Json<Value>> {
-    let id: i64 = strip_json_suffix(&id).parse().map_err(|_| ApiError::not_found())?;
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let id: i64 = strip_json_suffix(&id)
+        .parse()
+        .map_err(|_| ApiError::not_found())?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let items: Vec<Value> = db::post_pools(&conn, id)
         .iter()
         .filter_map(|pid| get_pool(&conn, *pid))
@@ -180,7 +186,7 @@ pub async fn create_pool(
         _ => "series",
     };
     let now = db::ts(Utc::now());
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     conn.execute(
         "INSERT INTO pools (name, description, creator_id, category, created_at, updated_at)
          VALUES (?1, ?2, ?3, ?4, ?5, ?5)",
@@ -198,10 +204,16 @@ pub async fn create_pool(
 }
 
 fn set_pool_posts(conn: &rusqlite::Connection, pool_id: i64, ids_raw: &str) -> ApiResult<()> {
-    conn.execute("DELETE FROM pool_posts WHERE pool_id = ?1", params![pool_id])
-        .map_err(ApiError::internal)?;
-    let cleaned = ids_raw.replace('[', " ").replace(']', " ");
-    for (ord, piece) in cleaned.split(|c: char| c.is_whitespace() || c == ',').enumerate() {
+    conn.execute(
+        "DELETE FROM pool_posts WHERE pool_id = ?1",
+        params![pool_id],
+    )
+    .map_err(ApiError::internal)?;
+    let cleaned = ids_raw.replace(['[', ']'], " ");
+    for (ord, piece) in cleaned
+        .split(|c: char| c.is_whitespace() || c == ',')
+        .enumerate()
+    {
         let piece = piece.trim();
         if piece.is_empty() {
             continue;
@@ -223,10 +235,12 @@ pub async fn update_pool(
     Path(id): Path<String>,
     request: axum::extract::Request,
 ) -> ApiResult<Json<Value>> {
-    let id: i64 = strip_json_suffix(&id).parse().map_err(|_| ApiError::not_found())?;
+    let id: i64 = strip_json_suffix(&id)
+        .parse()
+        .map_err(|_| ApiError::not_found())?;
     let user = auth.user().cloned().ok_or_else(ApiError::unauthorized)?;
     let form = read_post_form(request).await?;
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let pool = get_pool(&conn, id).ok_or_else(ApiError::not_found)?;
     if pool.creator_id != user.id && !user.is_admin() {
         return Err(ApiError::forbidden());
@@ -238,7 +252,10 @@ pub async fn update_pool(
         )
         .map_err(ApiError::internal)?;
     }
-    if let Some(desc) = form.get("description").or_else(|| form.get("pool[description]")) {
+    if let Some(desc) = form
+        .get("description")
+        .or_else(|| form.get("pool[description]"))
+    {
         conn.execute(
             "UPDATE pools SET description = ?1 WHERE id = ?2",
             params![desc, id],
@@ -247,6 +264,18 @@ pub async fn update_pool(
     }
     if let Some(ids) = form.get("post_ids").or_else(|| form.get("pool[post_ids]")) {
         set_pool_posts(&conn, id, ids)?;
+    }
+    if let Some(cat) = form.get("category").or_else(|| form.get("pool[category]")) {
+        let cat = if cat == "collection" {
+            "collection"
+        } else {
+            "series"
+        };
+        conn.execute(
+            "UPDATE pools SET category = ?1 WHERE id = ?2",
+            params![cat, id],
+        )
+        .map_err(ApiError::internal)?;
     }
     if let Some(active) = form.get("is_active") {
         conn.execute(
@@ -269,9 +298,11 @@ pub async fn delete_pool(
     auth: ApiAuth,
     Path(id): Path<String>,
 ) -> ApiResult<Json<Value>> {
-    let id: i64 = strip_json_suffix(&id).parse().map_err(|_| ApiError::not_found())?;
+    let id: i64 = strip_json_suffix(&id)
+        .parse()
+        .map_err(|_| ApiError::not_found())?;
     let user = auth.user().cloned().ok_or_else(ApiError::unauthorized)?;
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let pool = get_pool(&conn, id).ok_or_else(ApiError::not_found)?;
     if pool.creator_id != user.id && !user.is_admin() {
         return Err(ApiError::forbidden());

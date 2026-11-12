@@ -140,9 +140,7 @@ async fn serve_media(
 pub fn default_data_dir() -> PathBuf {
     std::env::var("SELF26_DATA_DIR")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| {
-            dirs_home().join(".local/share/self26")
-        })
+        .unwrap_or_else(|_| dirs_home().join(".local/share/self26"))
 }
 
 fn dirs_home() -> PathBuf {

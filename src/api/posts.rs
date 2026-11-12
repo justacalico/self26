@@ -36,7 +36,6 @@ impl PostForm {
             .or_else(|| self.fields.get(&format!("upload[{key}]")))
             .map(String::as_str)
     }
-
 }
 
 pub async fn read_post_form(req: axum::extract::Request) -> ApiResult<PostForm> {
@@ -92,10 +91,7 @@ pub async fn read_post_form(req: axum::extract::Request) -> ApiResult<PostForm> 
 /// single space-separated value under `key` and merge repeated keys the
 /// same way.
 fn push_field(fields: &mut HashMap<String, String>, name: String, value: String) {
-    let key = name
-        .strip_suffix("[]")
-        .map(str::to_string)
-        .unwrap_or(name);
+    let key = name.strip_suffix("[]").map(str::to_string).unwrap_or(name);
     match fields.get_mut(&key) {
         Some(existing) => {
             existing.push(' ');
@@ -207,25 +203,27 @@ pub async fn list_posts(
     let format = PostFormat::from_params(params.v2.as_deref(), params.mode.as_deref());
     let base = base_url_pub(&headers, &state.base_url);
     let posts = {
-        let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+        let conn = state.db.lock().map_err(ApiError::internal)?;
         let mut sql = format!("SELECT {} FROM posts", db::POST_COLS);
         let mut conds = vec!["posts.is_deleted = 0".to_string()];
         if !q.where_sql.is_empty() {
             conds.push(q.where_sql.clone());
         }
         sql.push_str(&format!(" WHERE {}", conds.join(" AND ")));
-        sql.push_str(&format!(" ORDER BY {} LIMIT {} OFFSET {}", q.order_sql, q.limit, page.offset));
+        sql.push_str(&format!(
+            " ORDER BY {} LIMIT {} OFFSET {}",
+            q.order_sql, q.limit, page.offset
+        ));
 
         let mut stmt = conn.prepare(&sql).map_err(ApiError::internal)?;
-        let params_refs: Vec<&dyn rusqlite::ToSql> =
-            q.params.iter().map(|p| p.as_ref()).collect();
+        let params_refs: Vec<&dyn rusqlite::ToSql> = q.params.iter().map(|p| p.as_ref()).collect();
         let rows = stmt
             .query_map(params_refs.as_slice(), db::row_to_post)
             .map_err(ApiError::internal)?;
         rows.flatten().collect::<Vec<StoredPost>>()
     };
 
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let items: Vec<Value> = posts
         .iter()
         .map(|p| post_json(&conn, p, &base, viewer_id(&auth), format))
@@ -244,13 +242,15 @@ pub async fn show_post(
     Path(id): Path<String>,
     Query(params): Query<HashMap<String, String>>,
 ) -> ApiResult<Json<Value>> {
-    let id: i64 = strip_json_suffix(&id).parse().map_err(|_| ApiError::not_found())?;
+    let id: i64 = strip_json_suffix(&id)
+        .parse()
+        .map_err(|_| ApiError::not_found())?;
     let format = PostFormat::from_params(
         params.get("v2").map(String::as_str),
         params.get("mode").map(String::as_str),
     );
     let base = base_url_pub(&headers, &state.base_url);
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let post = db::get_post(&conn, id).ok_or_else(ApiError::not_found)?;
     let body = post_json(&conn, &post, &base, viewer_id(&auth), format);
     if format.is_v2() {
@@ -327,12 +327,11 @@ pub async fn create_post(
     let ext = media::file_ext(&bytes, &filename);
 
     {
-        let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
-        if let Some(existing) = conn
+        let conn = state.db.lock().map_err(ApiError::internal)?;
+        if let Ok(existing) = conn
             .query_row("SELECT id FROM posts WHERE md5 = ?1", params![md5], |r| {
                 r.get::<_, i64>(0)
             })
-            .ok()
         {
             let mut e = ApiError::new(
                 StatusCode::UNPROCESSABLE_ENTITY,
@@ -363,7 +362,7 @@ pub async fn create_post(
     let now = db::ts(Utc::now());
 
     let post_id = {
-        let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+        let conn = state.db.lock().map_err(ApiError::internal)?;
         conn.execute(
             "INSERT INTO posts (created_at, updated_at, change_seq, uploader_id,
                 approver_id, md5, ext, size, width, height, has_sample,
@@ -399,7 +398,7 @@ pub async fn create_post(
         id
     };
 
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let post = db::get_post(&conn, post_id).ok_or_else(ApiError::not_found)?;
     let base = base_url_pub(&headers, &state.base_url);
     Ok((
@@ -420,11 +419,13 @@ pub async fn update_post(
     Path(id): Path<String>,
     request: axum::extract::Request,
 ) -> ApiResult<Json<Value>> {
-    let id: i64 = strip_json_suffix(&id).parse().map_err(|_| ApiError::not_found())?;
+    let id: i64 = strip_json_suffix(&id)
+        .parse()
+        .map_err(|_| ApiError::not_found())?;
     let user = auth.user().cloned().ok_or_else(ApiError::unauthorized)?;
     let form = read_post_form(request).await?;
 
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let post = db::get_post(&conn, id).ok_or_else(ApiError::not_found)?;
     if post.uploader_id != user.id && !user.is_admin() {
         return Err(ApiError::forbidden());
@@ -455,7 +456,10 @@ pub async fn update_post(
         let sources: Vec<String> = src.split_whitespace().map(String::from).collect();
         conn.execute(
             "UPDATE posts SET sources = ?1 WHERE id = ?2",
-            params![serde_json::to_string(&sources).unwrap_or_else(|_| "[]".into()), id],
+            params![
+                serde_json::to_string(&sources).unwrap_or_else(|_| "[]".into()),
+                id
+            ],
         )
         .map_err(ApiError::internal)?;
     }
@@ -498,7 +502,9 @@ pub async fn update_post(
 
     let post = db::get_post(&conn, id).ok_or_else(ApiError::not_found)?;
     let base = base_url_pub(&headers, &state.base_url);
-    Ok(Json(json!({ "post": post_json(&conn, &post, &base, Some(user.id), PostFormat::Legacy) })))
+    Ok(Json(
+        json!({ "post": post_json(&conn, &post, &base, Some(user.id), PostFormat::Legacy) }),
+    ))
 }
 
 fn truthy(v: &str) -> bool {
@@ -510,9 +516,11 @@ pub async fn delete_post(
     auth: ApiAuth,
     Path(id): Path<String>,
 ) -> ApiResult<Json<Value>> {
-    let id: i64 = strip_json_suffix(&id).parse().map_err(|_| ApiError::not_found())?;
+    let id: i64 = strip_json_suffix(&id)
+        .parse()
+        .map_err(|_| ApiError::not_found())?;
     let user = auth.user().cloned().ok_or_else(ApiError::unauthorized)?;
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let post = db::get_post(&conn, id).ok_or_else(ApiError::not_found)?;
     if post.uploader_id != user.id && !user.is_admin() {
         return Err(ApiError::forbidden());
@@ -536,7 +544,7 @@ pub async fn random_post(
         params.get("mode").map(String::as_str),
     );
     let base = base_url_pub(&headers, &state.base_url);
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let sql = format!(
         "SELECT {} FROM posts WHERE is_deleted = 0 ORDER BY RANDOM() LIMIT 1",
         db::POST_COLS
@@ -564,8 +572,8 @@ fn ranked_posts(
         params.get("mode").map(String::as_str),
     );
     let scale = params.get("scale").cloned().unwrap_or_default();
-    let base = base_url_pub(&headers, &state.base_url);
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let base = base_url_pub(headers, &state.base_url);
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let mut where_extra = String::new();
     if scale.starts_with("week") {
         where_extra = "AND posts.created_at >= datetime('now', '-7 days')".into();
@@ -640,7 +648,9 @@ pub async fn vote_post(
     Path(id): Path<String>,
     body: Bytes,
 ) -> ApiResult<Json<Value>> {
-    let id: i64 = strip_json_suffix(&id).parse().map_err(|_| ApiError::not_found())?;
+    let id: i64 = strip_json_suffix(&id)
+        .parse()
+        .map_err(|_| ApiError::not_found())?;
     let user = auth.user().cloned().ok_or_else(ApiError::unauthorized)?;
 
     let raw = String::from_utf8_lossy(&body);
@@ -665,7 +675,7 @@ pub async fn vote_post(
         _ => return Err(ApiError::bad_request("score must be up, down, 1, -1 or 0")),
     };
 
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     if db::get_post(&conn, id).is_none() {
         return Err(ApiError::not_found());
     }
@@ -703,14 +713,11 @@ pub async fn list_favorites(
         params.get("mode").map(String::as_str),
     );
     let base = base_url_pub(&headers, &state.base_url);
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
-    let sql = format!(
-        "SELECT {} FROM posts JOIN favorites f ON f.post_id = posts.id
+    let conn = state.db.lock().map_err(ApiError::internal)?;
+    let sql = "SELECT posts.* FROM posts JOIN favorites f ON f.post_id = posts.id
          WHERE f.user_id = ?1 AND posts.is_deleted = 0
-         ORDER BY f.created_at DESC LIMIT 320",
-        db::POST_COLS
-    );
-    let mut stmt = conn.prepare(&sql).map_err(ApiError::internal)?;
+         ORDER BY f.created_at DESC LIMIT 320";
+    let mut stmt = conn.prepare(sql).map_err(ApiError::internal)?;
     let posts: Vec<StoredPost> = stmt
         .query_map(params![user.id], db::row_to_post)
         .map_err(ApiError::internal)?
@@ -745,7 +752,7 @@ pub async fn add_favorite(
             .and_then(|s| s.parse().ok())
             .ok_or_else(|| ApiError::bad_request("post_id required"))?
     };
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     if db::get_post(&conn, post_id).is_none() {
         return Err(ApiError::not_found());
     }
@@ -762,9 +769,11 @@ pub async fn remove_favorite(
     auth: ApiAuth,
     Path(id): Path<String>,
 ) -> ApiResult<Json<Value>> {
-    let id: i64 = strip_json_suffix(&id).parse().map_err(|_| ApiError::not_found())?;
+    let id: i64 = strip_json_suffix(&id)
+        .parse()
+        .map_err(|_| ApiError::not_found())?;
     let user = auth.user().cloned().ok_or_else(ApiError::unauthorized)?;
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     conn.execute(
         "DELETE FROM favorites WHERE post_id = ?1 AND user_id = ?2",
         params![id, user.id],
@@ -780,14 +789,7 @@ pub async fn show_favorite_post(
     headers: HeaderMap,
     Path(id): Path<String>,
 ) -> ApiResult<Json<Value>> {
-    show_post(
-        State(state),
-        auth,
-        headers,
-        Path(id),
-        Query(HashMap::new()),
-    )
-    .await
+    show_post(State(state), auth, headers, Path(id), Query(HashMap::new())).await
 }
 
 #[derive(serde::Deserialize)]
@@ -801,9 +803,12 @@ pub async fn post_counts(
 ) -> ApiResult<Json<Value>> {
     let q = search::parse(
         params.tags.as_deref().unwrap_or_default(),
-        search::Page { limit: 1, offset: 0 },
+        search::Page {
+            limit: 1,
+            offset: 0,
+        },
     );
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let mut sql = "SELECT COUNT(*) FROM posts".to_string();
     let mut conds = vec!["posts.is_deleted = 0".to_string()];
     if !q.where_sql.is_empty() {

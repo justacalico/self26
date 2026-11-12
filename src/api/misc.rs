@@ -49,7 +49,7 @@ pub async fn list_flags(
     State(state): State<AppState>,
     Query(params): Query<HashMap<String, String>>,
 ) -> ApiResult<Json<Value>> {
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let mut sql = "SELECT * FROM post_flags WHERE 1=1".to_string();
     let mut args: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
     if let Some(pid) = params
@@ -79,10 +79,16 @@ pub async fn show_flag(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> ApiResult<Json<Value>> {
-    let id: i64 = strip_json_suffix(&id).parse().map_err(|_| ApiError::not_found())?;
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let id: i64 = strip_json_suffix(&id)
+        .parse()
+        .map_err(|_| ApiError::not_found())?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let f = conn
-        .query_row("SELECT * FROM post_flags WHERE id = ?1", params![id], row_to_flag)
+        .query_row(
+            "SELECT * FROM post_flags WHERE id = ?1",
+            params![id],
+            row_to_flag,
+        )
         .map_err(|_| ApiError::not_found())?;
     Ok(Json(flag_json(&conn, &f)))
 }
@@ -104,11 +110,8 @@ pub async fn create_flag(
         .or_else(|| form.get("post_flag[reason]"))
         .unwrap_or_default()
         .to_string();
-    let is_deletion = matches!(
-        form.get("is_deletion"),
-        Some("true") | Some("1")
-    );
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let is_deletion = matches!(form.get("is_deletion"), Some("true") | Some("1"));
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     if db::get_post(&conn, post_id).is_none() {
         return Err(ApiError::not_found());
     }
@@ -128,7 +131,11 @@ pub async fn create_flag(
         .query_row("SELECT last_insert_rowid()", [], |r| r.get(0))
         .map_err(ApiError::internal)?;
     let f = conn
-        .query_row("SELECT * FROM post_flags WHERE id = ?1", params![id], row_to_flag)
+        .query_row(
+            "SELECT * FROM post_flags WHERE id = ?1",
+            params![id],
+            row_to_flag,
+        )
         .map_err(|_| ApiError::not_found())?;
     Ok((StatusCode::CREATED, Json(flag_json(&conn, &f))))
 }
@@ -138,12 +145,14 @@ pub async fn delete_flag(
     auth: ApiAuth,
     Path(id): Path<String>,
 ) -> ApiResult<Json<Value>> {
-    let id: i64 = strip_json_suffix(&id).parse().map_err(|_| ApiError::not_found())?;
+    let id: i64 = strip_json_suffix(&id)
+        .parse()
+        .map_err(|_| ApiError::not_found())?;
     let user = auth.user().cloned().ok_or_else(ApiError::unauthorized)?;
     if !user.is_admin() {
         return Err(ApiError::forbidden());
     }
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     conn.execute("DELETE FROM post_flags WHERE id = ?1", params![id])
         .map_err(ApiError::internal)?;
     Ok(Json(json!({ "success": true })))
@@ -190,7 +199,7 @@ pub async fn list_tickets(
     if !user.is_admin() {
         return Err(ApiError::forbidden());
     }
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let mut sql = "SELECT * FROM tickets WHERE 1=1".to_string();
     let mut args: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
     if let Some(qtype) = params.get("search[qtype]") {
@@ -230,7 +239,7 @@ pub async fn create_ticket(
         .or_else(|| form.get("ticket[reason]"))
         .unwrap_or_default()
         .to_string();
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let now = db::ts(Utc::now());
     conn.execute(
         "INSERT INTO tickets (creator_id, qtype, disp_id, reason, status,
@@ -242,7 +251,11 @@ pub async fn create_ticket(
         .query_row("SELECT last_insert_rowid()", [], |r| r.get(0))
         .map_err(ApiError::internal)?;
     let t = conn
-        .query_row("SELECT * FROM tickets WHERE id = ?1", params![id], row_to_ticket)
+        .query_row(
+            "SELECT * FROM tickets WHERE id = ?1",
+            params![id],
+            row_to_ticket,
+        )
         .map_err(|_| ApiError::not_found())?;
     Ok((StatusCode::CREATED, Json(ticket_json(&conn, &t))))
 }
@@ -257,15 +270,10 @@ fn require_admin(auth: &ApiAuth) -> ApiResult<i64> {
     Ok(user.id)
 }
 
-pub async fn admin_stats(
-    State(state): State<AppState>,
-    auth: ApiAuth,
-) -> ApiResult<Json<Value>> {
+pub async fn admin_stats(State(state): State<AppState>, auth: ApiAuth) -> ApiResult<Json<Value>> {
     require_admin(&auth)?;
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
-    let count = |sql: &str| -> i64 {
-        conn.query_row(sql, [], |r| r.get(0)).unwrap_or(0)
-    };
+    let conn = state.db.lock().map_err(ApiError::internal)?;
+    let count = |sql: &str| -> i64 { conn.query_row(sql, [], |r| r.get(0)).unwrap_or(0) };
     Ok(Json(json!({
         "posts": count("SELECT COUNT(*) FROM posts WHERE is_deleted = 0"),
         "deleted_posts": count("SELECT COUNT(*) FROM posts WHERE is_deleted = 1"),
@@ -286,7 +294,7 @@ pub async fn admin_create_relation(
     request: axum::extract::Request,
 ) -> ApiResult<Json<Value>> {
     require_admin(&auth)?;
-    let table = match kind.as_str() {
+    let table = match strip_json_suffix(&kind) {
         "aliases" | "tag_aliases" => "tag_aliases",
         "implications" | "tag_implications" => "tag_implications",
         _ => return Err(ApiError::not_found()),
@@ -297,7 +305,7 @@ pub async fn admin_create_relation(
     if antecedent.is_empty() || consequent.is_empty() {
         return Err(ApiError::bad_request("antecedent and consequent required"));
     }
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     let id = crate::api::tags::create_relation(&conn, table, &antecedent, &consequent)
         .map_err(ApiError::internal)?;
     Ok(Json(json!({ "success": true, "id": id })))
@@ -309,17 +317,21 @@ pub async fn admin_resolve_flag(
     Path(id): Path<String>,
 ) -> ApiResult<Json<Value>> {
     require_admin(&auth)?;
-    let id: i64 = strip_json_suffix(&id).parse().map_err(|_| ApiError::not_found())?;
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let id: i64 = strip_json_suffix(&id)
+        .parse()
+        .map_err(|_| ApiError::not_found())?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     conn.execute(
         "UPDATE post_flags SET is_resolved = 1, updated_at = ?1 WHERE id = ?2",
         params![db::ts(Utc::now()), id],
     )
     .map_err(ApiError::internal)?;
     let post_id: Option<i64> = conn
-        .query_row("SELECT post_id FROM post_flags WHERE id = ?1", params![id], |r| {
-            r.get(0)
-        })
+        .query_row(
+            "SELECT post_id FROM post_flags WHERE id = ?1",
+            params![id],
+            |r| r.get(0),
+        )
         .ok();
     if let Some(pid) = post_id {
         let remaining: i64 = conn
@@ -346,8 +358,10 @@ pub async fn admin_resolve_ticket(
     Path(id): Path<String>,
 ) -> ApiResult<Json<Value>> {
     require_admin(&auth)?;
-    let id: i64 = strip_json_suffix(&id).parse().map_err(|_| ApiError::not_found())?;
-    let conn = state.db.lock().map_err(|e| ApiError::internal(e))?;
+    let id: i64 = strip_json_suffix(&id)
+        .parse()
+        .map_err(|_| ApiError::not_found())?;
+    let conn = state.db.lock().map_err(ApiError::internal)?;
     conn.execute(
         "UPDATE tickets SET status = 'approved', updated_at = ?1 WHERE id = ?2",
         params![db::ts(Utc::now()), id],
