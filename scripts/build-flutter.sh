@@ -23,7 +23,7 @@ if [ -n "$MERGE_REQUEST_ID" ]; then
 fi
 
 echo "Building Flutter web frontend (release, wasm)..."
-flutter build web --release --wasm --base-href / "${DART_DEFINES[@]+"${DART_DEFINES[@]}"}"
+MSYS2_ARG_CONV_EXCL='--base-href' flutter build web --release --wasm --base-href=/ "${DART_DEFINES[@]+"${DART_DEFINES[@]}"}"
 
 BUILD_OUTPUT="$FLUTTER_DIR/build/web"
 DIST_DIR="$PROJECT_DIR/frontend/dist"

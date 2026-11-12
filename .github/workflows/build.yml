@@ -67,7 +67,7 @@ jobs:
             BUILD_ALL="true"
           fi
           if [ "$BUILD_ALL" = "true" ]; then
-            TARGETS='[{"target":"server","os":"ubuntu-latest"},{"target":"server-linux-arm64","os":"ubuntu-24.04-arm","flutter":"git"},{"target":"server-windows","os":"windows-latest"},{"target":"server-windows-arm64","os":"windows-11-arm","flutter":"git"},{"target":"server-macos","os":"macos-latest","flutter_arch":"arm64"},{"target":"android","os":"ubuntu-latest"},{"target":"linux","os":"ubuntu-latest"},{"target":"linux-arm64","os":"ubuntu-24.04-arm","flutter":"git"},{"target":"windows","os":"windows-latest"},{"target":"windows-arm64","os":"windows-11-arm","flutter":"git"},{"target":"macos","os":"macos-latest","flutter_arch":"arm64"},{"target":"ios","os":"macos-latest","flutter_arch":"arm64"},{"target":"web","os":"ubuntu-latest"},{"target":"flatpak","os":"ubuntu-latest"},{"target":"flatpak-arm64","os":"ubuntu-24.04-arm"}]'
+            TARGETS='[{"target":"server","os":"ubuntu-latest"},{"target":"server-linux-arm64","os":"ubuntu-24.04-arm","flutter":"git"},{"target":"server-windows","os":"windows-latest"},{"target":"server-windows-arm64","os":"windows-11-arm","flutter":"git"},{"target":"server-macos","os":"macos-latest","flutter_arch":"arm64"},{"target":"android","os":"ubuntu-latest"},{"target":"linux","os":"ubuntu-latest"},{"target":"linux-arm64","os":"ubuntu-24.04-arm","flutter":"git"},{"target":"windows","os":"windows-latest"},{"target":"windows-arm64","os":"windows-11-arm","flutter":"git"},{"target":"macos","os":"macos-latest","flutter_arch":"arm64"},{"target":"ios","os":"macos-latest","flutter_arch":"arm64"},{"target":"web","os":"ubuntu-latest"},{"target":"flatpak","os":"ubuntu-latest"},{"target":"flatpak-arm64","os":"ubuntu-24.04-arm","flutter":"git"}]'
           else
             TARGETS='[{"target":"server","os":"ubuntu-latest"}]'
           fi
@@ -199,7 +199,7 @@ jobs:
           set -euo pipefail
           git clone --depth 1 --branch "${{ env.FLUTTER_VERSION }}" https://github.com/flutter/flutter.git "$HOME/flutter-sdk"
           echo "$HOME/flutter-sdk/bin" >> "$GITHUB_PATH"
-          if [ "${{ matrix.target }}" = "linux-arm64" ]; then
+          if [ "${{ matrix.target }}" = "linux-arm64" ] || [ "${{ matrix.target }}" = "flatpak-arm64" ]; then
             "$HOME/flutter-sdk/bin/flutter" precache --linux
           elif [ "${{ matrix.target }}" = "server-linux-arm64" ] || [ "${{ matrix.target }}" = "server-windows-arm64" ]; then
             "$HOME/flutter-sdk/bin/flutter" precache --web
@@ -374,7 +374,7 @@ jobs:
             OUT_ARCH=x86_64
           fi
           BUNDLE="build/linux/$LINUX_ARCH/release/bundle"
-          ../scripts/bundle-server.sh ../target/release/self26 "$BUNDLE"
+          scripts/bundle-server.sh target/release/self26 "$BUNDLE"
           tar -czf "$ARTIFACTS_DIR/self26-linux-$OUT_ARCH.tar.gz" -C "$BUNDLE" .
           (cd "$BUNDLE" && zip -r "$ARTIFACTS_DIR/self26-linux-$OUT_ARCH.zip" . >/dev/null)
           pkgdir="$GITHUB_WORKSPACE/self26-linux-$OUT_ARCH-deb"
@@ -382,9 +382,9 @@ jobs:
           mkdir -p "$pkgdir/opt/self26" "$pkgdir/usr/bin" "$pkgdir/DEBIAN"
           cp -r "$BUNDLE/." "$pkgdir/opt/self26/"
           ln -sf /opt/self26/self26_frontend "$pkgdir/usr/bin/self26"
-          install -Dm644 ../packaging/linux/self26.desktop "$pkgdir/usr/share/applications/gitlab.httpanimations.self26.desktop"
-          install -Dm644 ../packaging/linux/self26.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/self26.svg"
-          install -Dm644 ../LICENSE "$pkgdir/usr/share/doc/self26/copyright"
+          install -Dm644 packaging/linux/self26.desktop "$pkgdir/usr/share/applications/gitlab.httpanimations.self26.desktop"
+          install -Dm644 packaging/linux/self26.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/self26.svg"
+          install -Dm644 LICENSE "$pkgdir/usr/share/doc/self26/copyright"
           {
             echo "Package: self26"
             echo "Version: $VERSION"
@@ -398,8 +398,8 @@ jobs:
           } > "$pkgdir/DEBIAN/control"
           dpkg-deb --build "$pkgdir" "$ARTIFACTS_DIR/self26-linux-$OUT_ARCH.deb" >/dev/null
           rm -rf "$pkgdir"
-          ../scripts/build-rpm.sh "$BUNDLE" "$VERSION" "$RPM_ARCH" "$ARTIFACTS_DIR/self26-linux-$OUT_ARCH.rpm" "$BUILD_NUMBER"
-          ../scripts/build-appimage.sh "$BUNDLE" "$ARTIFACTS_DIR/self26-linux-$OUT_ARCH.AppImage" "$OUT_ARCH"
+          scripts/build-rpm.sh "$BUNDLE" "$VERSION" "$RPM_ARCH" "$ARTIFACTS_DIR/self26-linux-$OUT_ARCH.rpm" "$BUILD_NUMBER"
+          scripts/build-appimage.sh "$BUNDLE" "$ARTIFACTS_DIR/self26-linux-$OUT_ARCH.AppImage" "$OUT_ARCH"
 
       - name: Install Inno Setup
         if: startsWith(matrix.target, 'windows')
@@ -442,10 +442,10 @@ jobs:
             echo "Expected Windows build output at $RELEASE_DIR is missing" >&2
             exit 1
           fi
-          ../scripts/bundle-server.sh ../target/release/self26.exe "$RELEASE_DIR"
+          scripts/bundle-server.sh target/release/self26.exe "$RELEASE_DIR"
           powershell -NoProfile -Command \
             "Compress-Archive -Path '$(cygpath -w "$RELEASE_DIR")\\*' -DestinationPath '$(cygpath -w "$ARTIFACTS_DIR/self26-windows-$OUT_ARCH.zip")' -Force"
-          ../scripts/build-windows-installer.sh "$RELEASE_DIR" "$VERSION" "$OUT_ARCH" \
+          scripts/build-windows-installer.sh "$RELEASE_DIR" "$VERSION" "$OUT_ARCH" \
             "$ARTIFACTS_DIR/self26-windows-$OUT_ARCH-setup.exe"
 
       - name: Build macOS package
@@ -464,7 +464,7 @@ jobs:
           fi
           flutter build macos --release --build-name="$VERSION" --build-number="$BUILD_NUMBER" "${MR_DART_DEFINES[@]+"${MR_DART_DEFINES[@]}"}"
           APP="build/macos/Build/Products/Release/Self26.app"
-          ../scripts/bundle-server.sh ../target/release/self26 "$APP/Contents/MacOS"
+          scripts/bundle-server.sh target/release/self26 "$APP/Contents/MacOS"
           # The bundle changed after flutter build; re-sign ad-hoc so the app
           # and the nested server binary stay runnable.
           codesign --force --deep --sign - "$APP"
