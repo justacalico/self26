@@ -8,7 +8,7 @@ plugins {
 
 android {
     namespace = "gitlab.httpanimations.self26"
-    compileSdk = 36
+    compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

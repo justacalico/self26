@@ -18,7 +18,7 @@ dependencies:
   package_info_plus: ^8.0.0
   url_launcher: ^6.3.0
   window_manager: ^0.4.3
-  file_picker: ^8.1.2
+  file_picker: ^10.3.3
   cupertino_icons: ^1.0.8
 
 dev_dependencies:
