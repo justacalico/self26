@@ -8,6 +8,7 @@ use tracing_subscriber::EnvFilter;
 
 struct Cli {
     port: u16,
+    port_set: bool,
     host: String,
     data_dir: Option<PathBuf>,
     base_url: String,
@@ -19,6 +20,7 @@ struct Cli {
 fn parse_args() -> Cli {
     let mut cli = Cli {
         port: 8021,
+        port_set: false,
         host: "0.0.0.0".into(),
         data_dir: None,
         base_url: String::new(),
@@ -34,6 +36,7 @@ fn parse_args() -> Cli {
             "--port" | "-p" => {
                 if let Some(v) = args.next() {
                     cli.port = v.parse().unwrap_or(cli.port);
+                    cli.port_set = true;
                 }
             }
             "--host" => {
@@ -79,6 +82,9 @@ fn parse_args() -> Cli {
         cli.host = "127.0.0.1".into();
         cli.dev = true;
     }
+    if cli.dev && !cli.port_set {
+        cli.port = 0;
+    }
     cli
 }
 
@@ -116,13 +122,11 @@ async fn main() -> anyhow::Result<()> {
                     hex::encode(buf)
                 }
             });
-            let id = auth::create_user(&conn, "admin", &password, StoredUser::LEVEL_ADMIN)?;
-            let user = auth::get_user(&conn, id).expect("admin exists");
+            auth::create_user(&conn, "admin", &password, StoredUser::LEVEL_ADMIN)?;
             tracing::info!("created admin account 'admin'");
-            if cli.local {
-                tracing::info!("local mode admin password: {password}");
+            if cli.admin_password.is_none() {
+                tracing::info!("initial admin password: {password}");
             }
-            tracing::info!("admin api key: {}", user.api_key);
         }
     }
 
@@ -136,7 +140,7 @@ async fn main() -> anyhow::Result<()> {
         db,
         media: Arc::new(media),
         base_url: cli.base_url.clone(),
-        local_mode: cli.local,
+        local_mode: cli.dev,
     };
 
     let addr: SocketAddr = format!("{}:{}", cli.host, cli.port).parse()?;

@@ -68,7 +68,6 @@ pub async fn list_users(
     Query(params): Query<HashMap<String, String>>,
 ) -> ApiResult<Json<Value>> {
     let conn = state.db.lock().map_err(ApiError::internal)?;
-    let is_admin = auth.user().map(|u| u.is_admin()).unwrap_or(false);
     let mut sql = "SELECT id FROM users".to_string();
     let mut args: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
     if let Some(name) = params
@@ -90,7 +89,7 @@ pub async fn list_users(
         .iter()
         .filter_map(|id| auth::get_user(&conn, *id))
         .map(|u| {
-            let full = is_admin || auth.id() == Some(u.id);
+            let full = auth.id() == Some(u.id);
             user_json(&conn, &u, full)
         })
         .collect();
@@ -200,7 +199,7 @@ pub async fn create_user(
             .unwrap_or(StoredUser::LEVEL_MEMBER)
     };
     let id = auth::create_user(&conn, &name, &password, level)
-        .map_err(|e| ApiError::bad_request(e.to_string()))?;
+        .map_err(|_| ApiError::bad_request("name already taken"))?;
     let user = auth::get_user(&conn, id).ok_or_else(ApiError::not_found)?;
     Ok((StatusCode::CREATED, Json(user_json(&conn, &user, true))))
 }

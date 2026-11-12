@@ -51,16 +51,24 @@ pub async fn read_post_form(req: axum::extract::Request) -> ApiResult<PostForm> 
         let mut mp = <Multipart as FromRequest<()>>::from_request(req, &())
             .await
             .map_err(|e| ApiError::bad_request(e.body_text()))?;
-        while let Ok(Some(mut field)) = mp.next_field().await {
+        while let Some(mut field) = mp
+            .next_field()
+            .await
+            .map_err(|e| ApiError::bad_request(e.body_text()))?
+        {
             let name = field.name().unwrap_or_default().to_string();
             let mut data = Vec::new();
-            while let Ok(Some(chunk)) = field.chunk().await {
+            while let Some(chunk) = field
+                .chunk()
+                .await
+                .map_err(|e| ApiError::bad_request(e.body_text()))?
+            {
                 data.extend_from_slice(&chunk);
                 if data.len() > 128 * 1024 * 1024 {
                     return Err(ApiError::bad_request("body too large"));
                 }
             }
-            if name.contains("file") || field.file_name().is_some() {
+            if field.file_name().is_some() {
                 let fname = field.file_name().unwrap_or("upload.bin").to_string();
                 if !data.is_empty() {
                     form.file = Some((fname, data.into()));
@@ -156,13 +164,20 @@ pub(crate) fn base_url_pub(headers: &HeaderMap, configured: &str) -> String {
         .get("host")
         .and_then(|h| h.to_str().ok())
         .unwrap_or_default();
-    if host.is_empty() {
+    if host.len() > 253
+        || !host
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-' | b':' | b'[' | b']'))
+    {
         return String::new();
     }
-    let scheme = headers
+    let scheme = match headers
         .get("x-forwarded-proto")
         .and_then(|h| h.to_str().ok())
-        .unwrap_or("http");
+    {
+        Some("https") => "https",
+        _ => "http",
+    };
     format!("{scheme}://{host}")
 }
 
@@ -212,7 +227,16 @@ pub async fn list_posts(
     let posts = {
         let conn = state.db.lock().map_err(ApiError::internal)?;
         let mut sql = format!("SELECT {} FROM posts", db::POST_COLS);
-        let mut conds = vec!["posts.is_deleted = 0".to_string()];
+        let wants_status = params
+            .tags
+            .as_deref()
+            .map(|t| t.split_whitespace().any(|tok| tok.starts_with("status:")))
+            .unwrap_or(false);
+        let admin = auth.user().map(|u| u.is_admin()).unwrap_or(false);
+        let mut conds = Vec::new();
+        if !(admin && wants_status) {
+            conds.push("posts.is_deleted = 0".to_string());
+        }
         if !q.where_sql.is_empty() {
             conds.push(q.where_sql.clone());
         }
@@ -445,12 +469,34 @@ pub async fn update_post(
 
     let conn = state.db.lock().map_err(ApiError::internal)?;
     let post = db::get_post(&conn, id).ok_or_else(ApiError::not_found)?;
-    if post.uploader_id != user.id && !user.is_admin() {
+    if post.is_deleted && !user.is_admin() {
+        return Err(ApiError::not_found());
+    }
+    let can_manage = post.uploader_id == user.id || user.is_admin();
+    let sensitive = [
+        "rating",
+        "description",
+        "source",
+        "sources",
+        "parent_id",
+        "is_rating_locked",
+        "is_note_locked",
+        "is_status_locked",
+        "locked_tags",
+    ]
+    .iter()
+    .any(|k| form.get(k).is_some());
+    if sensitive && !can_manage {
         return Err(ApiError::forbidden());
     }
 
     if let Some(tags) = form.get("tag_string").or_else(|| form.get("tags")) {
-        apply_tag_edits(&conn, id, tags)?;
+        let merged = if user.is_admin() || post.locked_tags.is_empty() {
+            tags.to_string()
+        } else {
+            format!("{} {}", tags, post.locked_tags.join(" "))
+        };
+        apply_tag_edits(&conn, id, &merged)?;
     }
     if let Some(r) = form.get("rating") {
         if !post.rating_locked || user.is_admin() {
@@ -511,6 +557,20 @@ pub async fn update_post(
             )
             .map_err(ApiError::internal)?;
         }
+        if let Some(v) = form.get("locked_tags") {
+            let tags: Vec<String> = v
+                .split_whitespace()
+                .map(|t| t.to_lowercase().replace(' ', "_"))
+                .collect();
+            conn.execute(
+                "UPDATE posts SET locked_tags = ?1 WHERE id = ?2",
+                params![
+                    serde_json::to_string(&tags).unwrap_or_else(|_| "[]".into()),
+                    id
+                ],
+            )
+            .map_err(ApiError::internal)?;
+        }
     }
     conn.execute(
         "UPDATE posts SET updated_at = ?1, change_seq = change_seq + 1 WHERE id = ?2",
@@ -543,11 +603,15 @@ pub async fn delete_post(
     if post.uploader_id != user.id && !user.is_admin() {
         return Err(ApiError::forbidden());
     }
+    if post.status_locked && !user.is_admin() {
+        return Err(ApiError::forbidden());
+    }
     conn.execute(
         "UPDATE posts SET is_deleted = 1, updated_at = ?1 WHERE id = ?2",
         params![db::ts(Utc::now()), id],
     )
     .map_err(ApiError::internal)?;
+    db::refresh_tag_counts(&conn).map_err(ApiError::internal)?;
     Ok(Json(json!({ "success": true })))
 }
 
@@ -563,12 +627,23 @@ pub async fn random_post(
     );
     let base = base_url_pub(&headers, &state.base_url);
     let conn = state.db.lock().map_err(ApiError::internal)?;
-    let sql = format!(
-        "SELECT {} FROM posts WHERE is_deleted = 0 ORDER BY RANDOM() LIMIT 1",
+    let (page, _) = search::page_params(Some("1"), Some(1));
+    let mut q = search::parse(
+        params.get("tags").map(String::as_str).unwrap_or_default(),
+        page,
+    );
+    q.order_sql = "RANDOM()".into();
+    let mut sql = format!(
+        "SELECT {} FROM posts WHERE posts.is_deleted = 0",
         db::POST_COLS
     );
+    if !q.where_sql.is_empty() {
+        sql.push_str(&format!(" AND {}", q.where_sql));
+    }
+    sql.push_str(" ORDER BY RANDOM() LIMIT 1");
+    let params_refs: Vec<&dyn rusqlite::ToSql> = q.params.iter().map(|p| p.as_ref()).collect();
     let post = conn
-        .query_row(&sql, [], db::row_to_post)
+        .query_row(&sql, params_refs.as_slice(), db::row_to_post)
         .map_err(|_| ApiError::not_found())?;
     let body = post_json(&conn, &post, &base, viewer_id(&auth), format);
     if format.is_v2() {
@@ -694,7 +769,8 @@ pub async fn vote_post(
     };
 
     let conn = state.db.lock().map_err(ApiError::internal)?;
-    if db::get_post(&conn, id).is_none() {
+    let post = db::get_post(&conn, id).ok_or_else(ApiError::not_found)?;
+    if post.is_deleted {
         return Err(ApiError::not_found());
     }
     if score == 0 {
@@ -771,7 +847,8 @@ pub async fn add_favorite(
             .ok_or_else(|| ApiError::bad_request("post_id required"))?
     };
     let conn = state.db.lock().map_err(ApiError::internal)?;
-    if db::get_post(&conn, post_id).is_none() {
+    let post = db::get_post(&conn, post_id).ok_or_else(ApiError::not_found)?;
+    if post.is_deleted {
         return Err(ApiError::not_found());
     }
     conn.execute(

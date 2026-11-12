@@ -120,7 +120,7 @@ pub async fn create_note(
         .ok_or_else(|| ApiError::bad_request("post_id required"))?;
     let conn = state.db.lock().map_err(ApiError::internal)?;
     let post = db::get_post(&conn, post_id).ok_or_else(ApiError::not_found)?;
-    if post.note_locked && !user.is_admin() {
+    if post.is_deleted || (post.note_locked && !user.is_admin()) {
         return Err(ApiError::forbidden());
     }
     let num = |k: &str, def: i64| {

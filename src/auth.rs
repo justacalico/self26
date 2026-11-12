@@ -123,6 +123,10 @@ pub fn create_session(conn: &Connection, user_id: i64) -> rusqlite::Result<Strin
 
 pub fn user_by_session(conn: &Connection, token: &str) -> Option<StoredUser> {
     let cutoff = db::ts(Utc::now() - chrono::Duration::days(30));
+    let _ = conn.execute(
+        "DELETE FROM sessions WHERE created_at <= ?1",
+        params![cutoff],
+    );
     let id: i64 = conn
         .query_row(
             "SELECT user_id FROM sessions WHERE token = ?1 AND created_at > ?2",
@@ -185,9 +189,6 @@ impl FromRequestParts<AppState> for ApiAuth {
                             if let Some((login, key)) = creds.split_once(':') {
                                 if let Some(user) = user_by_name(&conn, login) {
                                     if user.api_key.as_bytes().ct_eq(key.as_bytes()).into() {
-                                        return Ok(ApiAuth(Some(user)));
-                                    }
-                                    if verify_password(key, &user.password_hash) {
                                         return Ok(ApiAuth(Some(user)));
                                     }
                                 }

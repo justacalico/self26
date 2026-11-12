@@ -17,6 +17,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Json, Router};
 use serde_json::{json, Value};
+use tower::ServiceExt;
 
 use crate::db::DbRef;
 use crate::media::MediaProcessor;
@@ -107,6 +108,7 @@ async fn metrics(State(state): State<AppState>) -> String {
 async fn serve_media(
     State(state): State<AppState>,
     Path((kind, prefix, file)): Path<(String, String, String)>,
+    request: axum::extract::Request,
 ) -> Response {
     if !matches!(kind.as_str(), "original" | "preview" | "sample")
         || file.contains("..")
@@ -119,46 +121,40 @@ async fn serve_media(
     if !path.starts_with(state.media.data_dir.join(&kind)) {
         return (StatusCode::NOT_FOUND, "not found").into_response();
     }
-    if kind == "original" {
-        if let Some(md5) = file.split('.').next() {
-            let deleted: bool = state
-                .db
-                .lock()
+    if let Some(md5) = file.split('.').next() {
+        let deleted: bool = state
+            .db
+            .lock()
+            .ok()
+            .and_then(|conn| {
+                conn.query_row(
+                    "SELECT is_deleted FROM posts WHERE md5 = ?1",
+                    rusqlite::params![md5],
+                    |r| r.get(0),
+                )
                 .ok()
-                .and_then(|conn| {
-                    conn.query_row(
-                        "SELECT is_deleted FROM posts WHERE md5 = ?1",
-                        rusqlite::params![md5],
-                        |r| r.get(0),
-                    )
-                    .ok()
-                })
-                .unwrap_or(false);
-            if deleted {
-                return (StatusCode::NOT_FOUND, "not found").into_response();
-            }
+            })
+            .unwrap_or(true);
+        if deleted {
+            return (StatusCode::NOT_FOUND, "not found").into_response();
         }
     }
-    match tokio::fs::read(&path).await {
-        Ok(bytes) => {
-            let mime = mime_guess::from_path(&path).first_or_octet_stream();
-            let mut resp = Response::new(axum::body::Body::from(bytes));
-            resp.headers_mut().insert(
-                header::HeaderName::from_static("x-content-type-options"),
-                HeaderValue::from_static("nosniff"),
-            );
-            resp.headers_mut().insert(
-                header::CONTENT_TYPE,
-                HeaderValue::from_str(mime.as_ref()).unwrap(),
-            );
-            resp.headers_mut().insert(
-                header::CACHE_CONTROL,
-                HeaderValue::from_static("public, max-age=31536000, immutable"),
-            );
-            resp
-        }
-        Err(_) => (StatusCode::NOT_FOUND, "not found").into_response(),
-    }
+    let mut resp = match tower_http::services::ServeFile::new(&path)
+        .oneshot(request)
+        .await
+    {
+        Ok(r) => r.into_response(),
+        Err(_) => return (StatusCode::NOT_FOUND, "not found").into_response(),
+    };
+    resp.headers_mut().insert(
+        header::HeaderName::from_static("x-content-type-options"),
+        HeaderValue::from_static("nosniff"),
+    );
+    resp.headers_mut().insert(
+        header::CACHE_CONTROL,
+        HeaderValue::from_static("public, max-age=31536000, immutable"),
+    );
+    resp
 }
 
 pub fn default_data_dir() -> PathBuf {

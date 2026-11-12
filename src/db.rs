@@ -45,7 +45,7 @@ fn migrate(conn: &Connection) -> Result<()> {
         r#"
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL UNIQUE,
+            name TEXT NOT NULL UNIQUE COLLATE NOCASE,
             password_hash TEXT NOT NULL,
             api_key TEXT NOT NULL UNIQUE,
             level INTEGER NOT NULL DEFAULT 20,
@@ -263,28 +263,29 @@ pub fn post_tags(conn: &Connection, post_id: i64) -> Vec<(String, i64)> {
 
 /// Replaces a post's tag set and refreshes tag post_counts.
 pub fn set_post_tags(conn: &Connection, post_id: i64, tag_names: &[String]) -> Result<()> {
-    conn.execute("DELETE FROM post_tags WHERE post_id = ?1", params![post_id])?;
+    let tx = conn.unchecked_transaction()?;
+    tx.execute("DELETE FROM post_tags WHERE post_id = ?1", params![post_id])?;
     for name in tag_names {
         let normalized = name.trim().to_lowercase().replace(' ', "_");
         if normalized.is_empty() {
             continue;
         }
-        conn.execute(
+        tx.execute(
             "INSERT INTO tags (name) VALUES (?1) ON CONFLICT(name) DO NOTHING",
             params![normalized],
         )?;
-        let tag_id: i64 = conn.query_row(
+        let tag_id: i64 = tx.query_row(
             "SELECT id FROM tags WHERE name = ?1",
             params![normalized],
             |r| r.get(0),
         )?;
-        conn.execute(
+        tx.execute(
             "INSERT OR IGNORE INTO post_tags (post_id, tag_id) VALUES (?1, ?2)",
             params![post_id, tag_id],
         )?;
     }
-    refresh_tag_counts(conn)?;
-    Ok(())
+    refresh_tag_counts(&tx)?;
+    Ok(tx.commit()?)
 }
 
 pub fn refresh_tag_counts(conn: &Connection) -> Result<()> {

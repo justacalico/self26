@@ -52,8 +52,17 @@ impl MediaProcessor {
         std::fs::write(dir.join(format!("{md5}.{ext}")), bytes).context("write original")?;
 
         let mut info = MediaInfo::default();
-        let Ok(img) = image::load_from_memory(bytes) else {
+        let Ok(reader) = image::ImageReader::new(std::io::Cursor::new(bytes)).with_guessed_format()
+        else {
             return Ok(info); // video or unsupported: stored but no previews
+        };
+        let mut limits = image::Limits::default();
+        limits.max_image_width = Some(16_384);
+        limits.max_image_height = Some(16_384);
+        let mut reader = reader;
+        reader.limits(limits);
+        let Ok(img) = reader.decode() else {
+            return Ok(info);
         };
         let (w, h) = img.dimensions();
         info.width = w as i64;
@@ -112,28 +121,23 @@ pub fn file_ext(bytes: &[u8], filename: &str) -> String {
         Some("webm")
     } else if bytes.starts_with(b"RIFF") && bytes.len() > 12 && &bytes[8..12] == b"WEBP" {
         Some("webp")
+    } else if bytes.starts_with(b"FWS") || bytes.starts_with(b"CWS") || bytes.starts_with(b"ZWS") {
+        Some("swf")
     } else if bytes.starts_with(b"%PDF") {
         Some("pdf")
     } else {
         None
     };
-    let ext = sniffed
-        .map(String::from)
-        .or_else(|| {
-            Path::new(filename)
-                .extension()
-                .map(|e| e.to_string_lossy().to_lowercase())
-        })
-        .unwrap_or_else(|| "bin".into());
-    match ext.as_str() {
-        "jpeg" => "jpg".into(),
-        e if matches!(
-            e,
-            "png" | "jpg" | "gif" | "webp" | "webm" | "mp4" | "swf" | "pdf"
-        ) =>
-        {
-            e.into()
-        }
+    if let Some(e) = sniffed {
+        return e.into();
+    }
+    match Path::new(filename)
+        .extension()
+        .map(|e| e.to_string_lossy().to_lowercase())
+        .as_deref()
+    {
+        Some("jpeg") => "jpg".into(),
+        Some(e @ ("png" | "jpg" | "gif" | "webp" | "webm" | "mp4")) => e.into(),
         _ => "bin".into(),
     }
 }

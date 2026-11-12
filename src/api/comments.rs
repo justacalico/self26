@@ -176,7 +176,8 @@ pub async fn create_comment(
         return Err(ApiError::bad_request("body required"));
     }
     let conn = state.db.lock().map_err(ApiError::internal)?;
-    if db::get_post(&conn, post_id).is_none() {
+    let post = db::get_post(&conn, post_id).ok_or_else(ApiError::not_found)?;
+    if post.is_deleted {
         return Err(ApiError::not_found());
     }
     let now = db::ts(Utc::now());
@@ -294,10 +295,15 @@ pub async fn vote_comment(
     let score: i64 = match score_str.as_str() {
         "up" | "1" => 1,
         "down" | "-1" => -1,
-        _ => return Err(ApiError::bad_request("score must be up or down")),
+        "0" | "none" => 0,
+        _ => return Err(ApiError::bad_request("score must be up, down, 1, -1 or 0")),
     };
     let conn = state.db.lock().map_err(ApiError::internal)?;
-    if get_comment(&conn, id).is_none() {
+    let c = get_comment(&conn, id).ok_or_else(ApiError::not_found)?;
+    if c.creator_id == user.id {
+        return Err(ApiError::bad_request("cannot vote on your own comment"));
+    }
+    if c.is_hidden {
         return Err(ApiError::not_found());
     }
     let old: i64 = conn
@@ -307,13 +313,21 @@ pub async fn vote_comment(
             |r| r.get(0),
         )
         .unwrap_or(0);
-    conn.execute(
-        "INSERT INTO comment_votes (comment_id, user_id, score, created_at)
+    if score == 0 {
+        conn.execute(
+            "DELETE FROM comment_votes WHERE comment_id = ?1 AND user_id = ?2",
+            params![id, user.id],
+        )
+        .map_err(ApiError::internal)?;
+    } else {
+        conn.execute(
+            "INSERT INTO comment_votes (comment_id, user_id, score, created_at)
          VALUES (?1, ?2, ?3, ?4)
          ON CONFLICT(comment_id, user_id) DO UPDATE SET score = excluded.score",
-        params![id, user.id, score, db::ts(Utc::now())],
-    )
-    .map_err(ApiError::internal)?;
+            params![id, user.id, score, db::ts(Utc::now())],
+        )
+        .map_err(ApiError::internal)?;
+    }
     conn.execute(
         "UPDATE comments SET score = score + ?1 WHERE id = ?2",
         params![score - old, id],

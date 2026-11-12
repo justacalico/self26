@@ -192,7 +192,7 @@ pub async fn create_pool(
          VALUES (?1, ?2, ?3, ?4, ?5, ?5)",
         params![name, description, user.id, category, now],
     )
-    .map_err(|e| ApiError::bad_request(e.to_string()))?;
+    .map_err(|_| ApiError::bad_request("name already taken"))?;
     let id: i64 = conn
         .query_row("SELECT last_insert_rowid()", [], |r| r.get(0))
         .map_err(ApiError::internal)?;
@@ -246,11 +246,15 @@ pub async fn update_pool(
         return Err(ApiError::forbidden());
     }
     if let Some(name) = form.get("name").or_else(|| form.get("pool[name]")) {
+        let name = name.trim().to_lowercase().replace(' ', "_");
+        if name.is_empty() {
+            return Err(ApiError::bad_request("name required"));
+        }
         conn.execute(
             "UPDATE pools SET name = ?1 WHERE id = ?2",
-            params![name.trim().to_lowercase().replace(' ', "_"), id],
+            params![name, id],
         )
-        .map_err(ApiError::internal)?;
+        .map_err(|_| ApiError::bad_request("name already taken"))?;
     }
     if let Some(desc) = form
         .get("description")

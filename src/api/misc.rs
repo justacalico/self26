@@ -50,10 +50,14 @@ pub async fn list_flags(
     auth: ApiAuth,
     Query(params): Query<HashMap<String, String>>,
 ) -> ApiResult<Json<Value>> {
-    auth.user().ok_or_else(ApiError::unauthorized)?;
+    let user = auth.user().cloned().ok_or_else(ApiError::unauthorized)?;
     let conn = state.db.lock().map_err(ApiError::internal)?;
     let mut sql = "SELECT * FROM post_flags WHERE 1=1".to_string();
     let mut args: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+    if !user.is_admin() {
+        args.push(Box::new(user.id));
+        sql.push_str(&format!(" AND creator_id = ?{}", args.len()));
+    }
     if let Some(pid) = params
         .get("search[post_id]")
         .and_then(|s| s.parse::<i64>().ok())
@@ -82,7 +86,7 @@ pub async fn show_flag(
     auth: ApiAuth,
     Path(id): Path<String>,
 ) -> ApiResult<Json<Value>> {
-    auth.user().ok_or_else(ApiError::unauthorized)?;
+    let user = auth.user().cloned().ok_or_else(ApiError::unauthorized)?;
     let id: i64 = strip_json_suffix(&id)
         .parse()
         .map_err(|_| ApiError::not_found())?;
@@ -94,6 +98,9 @@ pub async fn show_flag(
             row_to_flag,
         )
         .map_err(|_| ApiError::not_found())?;
+    if !user.is_admin() && f.creator_id != Some(user.id) {
+        return Err(ApiError::not_found());
+    }
     Ok(Json(flag_json(&conn, &f)))
 }
 
@@ -227,6 +234,7 @@ pub async fn create_ticket(
     auth: ApiAuth,
     request: axum::extract::Request,
 ) -> ApiResult<(StatusCode, Json<Value>)> {
+    auth.user().ok_or_else(ApiError::unauthorized)?;
     let form = read_post_form(request).await?;
     let qtype = form
         .get("qtype")
