@@ -520,7 +520,7 @@ jobs:
           mkdir -p artifacts .gpg
           chmod 700 .gpg
           printf '%s' "$FLATPAK_GPG_KEY" | base64 -d | gpg --batch --homedir .gpg --import
-          KEYID=$(gpg --batch --homedir .gpg --list-keys --with-colons | awk -F: '/^sec/{print $5; exit}')
+          KEYID=$(gpg --batch --homedir .gpg --list-secret-keys --with-colons | awk -F: '/^fpr/{print $10; exit}')
           flutter config --no-analytics >/dev/null
           ./scripts/build-flutter.sh
           cargo build --release
