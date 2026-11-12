@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.1.2 - 2026-11-12
+#### Bug Fixes
+- 更新 Docker 构建依赖与端口 - (3f2488a) - calico
+
+- - -
+
 ## v0.1.1 - 2026-11-12
 #### Bug Fixes
 - 升级 file_picker 以适配新 Android API - (2f0d988) - calico
